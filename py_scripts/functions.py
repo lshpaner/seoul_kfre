@@ -394,7 +394,7 @@ def crosstab_plot(
 
 
 def create_metrics_boxplots(
-    df_eda,
+    df,
     metrics_list,
     metrics_boxplot_comp,
     n_rows,
@@ -410,9 +410,9 @@ def create_metrics_boxplots(
     given metrics and comparisons.
 
     Parameters:
-    - df_eda: DataFrame containing the data.
-    - metrics_list: List of metric names (columns in df_eda) to plot.
-    - metrics_boxplot_comp: List of comparison categories (columns in df_eda).
+    - df: DataFrame containing the data.
+    - metrics_list: List of metric names (columns in df) to plot.
+    - metrics_boxplot_comp: List of comparison categories (columns in df).
     - n_rows: Number of rows in the subplot grid.
     - n_cols: Number of columns in the subplot grid.
     - image_path_png: Directory path to save .png images.
@@ -434,7 +434,7 @@ def create_metrics_boxplots(
         for met_comp in metrics_boxplot_comp:
             for met_list in metrics_list:
                 plt.figure(figsize=(6, 4))  # Adjust the size as needed
-                sns.boxplot(x=df_eda[met_comp], y=df_eda[met_list])
+                sns.boxplot(x=df[met_comp], y=df[met_list])
                 plt.title(f"Distribution of {met_list} by {met_comp}")
                 plt.xlabel(met_comp)
                 plt.ylabel(met_list)
@@ -463,7 +463,7 @@ def create_metrics_boxplots(
             if i < len(metrics_list) * len(metrics_boxplot_comp):
                 met_comp = metrics_boxplot_comp[i // len(metrics_list)]
                 met_list = metrics_list[i % len(metrics_list)]
-                sns.boxplot(x=df_eda[met_comp], y=df_eda[met_list], ax=ax)
+                sns.boxplot(x=df[met_comp], y=df[met_list], ax=ax)
                 ax.set_title(f"Distribution of {met_list} by {met_comp}")
                 ax.set_xlabel(met_comp)
                 ax.set_ylabel(met_list)
@@ -884,3 +884,115 @@ def kde_distributions(
             plt.close(
                 fig
             )  # Close the figure after saving to avoid displaying it multiple times
+
+
+################################################################################
+############################# Box Plots Assortment #############################
+################################################################################
+
+
+def create_metrics_boxplots(
+    df,
+    metrics_list,
+    metrics_boxplot_comp,
+    n_rows,
+    n_cols,
+    image_path_png,
+    image_path_svg,
+    save_individual=True,
+    save_grid=True,
+    save_both=False,
+):
+    """
+    Create and save individual boxplots, an entire grid of boxplots, or both for
+    given metrics and comparisons.
+
+    Parameters:
+    - df: DataFrame containing the data.
+    - metrics_list: List of metric names (columns in df) to plot.
+    - metrics_boxplot_comp: List of comparison categories (columns in df).
+    - n_rows: Number of rows in the subplot grid.
+    - n_cols: Number of columns in the subplot grid.
+    - image_path_png: Directory path to save .png images.
+    - image_path_svg: Directory path to save .svg images.
+    - save_individual: Boolean, True if saving each subplot as an individual file.
+    - save_grid: Boolean, True if saving the entire grid as one image.
+    - save_both: Boolean, True if saving both individual and grid images.
+    """
+    # Ensure the directories exist
+    os.makedirs(image_path_png, exist_ok=True)
+    os.makedirs(image_path_svg, exist_ok=True)
+
+    if save_both:
+        save_individual = True
+        save_grid = True
+
+    # Save individual plots if required
+    if save_individual:
+        for met_comp in metrics_boxplot_comp:
+            palette = sns.color_palette("tab10", n_colors=10)
+            for met_list in metrics_list:
+                plt.figure(figsize=(6, 4))  # Adjust the size as needed
+                sns.boxplot(
+                    x=met_comp,
+                    y=met_list,
+                    data=df,
+                    hue=met_comp,
+                    palette=palette,
+                    dodge=False,
+                )
+                plt.title(f"Distribution of {met_list} by {met_comp}")
+                plt.xlabel(met_comp)
+                plt.ylabel(met_list)
+                safe_met_list = (
+                    met_list.replace(" ", "_")
+                    .replace("(", "")
+                    .replace(")", "")
+                    .replace("/", "_per_")
+                )
+                filename_png = f"{safe_met_list}_by_{met_comp}.png"
+                filename_svg = f"{safe_met_list}_by_{met_comp}.svg"
+                plt.savefig(
+                    os.path.join(image_path_png, filename_png), bbox_inches="tight"
+                )
+                plt.savefig(
+                    os.path.join(image_path_svg, filename_svg), bbox_inches="tight"
+                )
+                plt.close()
+
+    # Save the entire grid if required
+    if save_grid:
+        fig, axs = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))
+        axs = axs.flatten()
+
+        for i, ax in enumerate(axs):
+            if i < len(metrics_list) * len(metrics_boxplot_comp):
+                met_comp = metrics_boxplot_comp[i // len(metrics_list)]
+                met_list = metrics_list[i % len(metrics_list)]
+                palette = sns.color_palette("tab10", n_colors=10)
+                sns.boxplot(
+                    x=met_comp,
+                    y=met_list,
+                    data=df,
+                    hue=met_comp,
+                    ax=ax,
+                    palette=palette,
+                    dodge=False,
+                )
+                ax.set_title(f"Distribution of {met_list} by {met_comp}")
+                ax.set_xlabel(met_comp)
+                ax.set_ylabel(met_list)
+            else:
+                ax.set_visible(False)
+
+        plt.tight_layout()
+        fig.savefig(
+            os.path.join(image_path_png, "all_boxplot_comparisons.png"),
+            bbox_inches="tight",
+        )
+        fig.savefig(
+            os.path.join(image_path_svg, "all_boxplot_comparisons.svg"),
+            bbox_inches="tight",
+        )
+        plt.show()  # show the plot(s)
+        plt.close(fig)
