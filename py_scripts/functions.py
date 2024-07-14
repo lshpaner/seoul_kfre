@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from itertools import combinations
 from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -27,7 +28,11 @@ def ensure_directory(path):
 ################################################################################
 
 
-def add_ids(df, column_name="Patient_ID", seed=None):
+def add_ids(
+    df,
+    column_name="Patient_ID",
+    seed=None,
+):
     """
     Add a column of unique, 9-digit IDs to the dataframe.
 
@@ -57,7 +62,13 @@ def add_ids(df, column_name="Patient_ID", seed=None):
     return df
 
 
-def strip_trailing_period(df, column_name):
+################################################################################
+
+
+def strip_trailing_period(
+    df,
+    column_name,
+):
     """
     Strip the trailing period from floats in a specified column of a DataFrame, if present.
 
@@ -170,6 +181,65 @@ def data_types(df):
     )
 
     return dat_type
+
+
+################################################################################
+########################### Summarize All Combinations #########################
+################################################################################
+
+
+def summarize_all_combinations(
+    df,
+    variables,
+    data_path,
+    data_name,
+    min_length=2,
+):
+    """
+    Generates summary tables for all possible combinations of the specified
+    variables in the dataframe and saves them to an Excel file.
+
+    Parameters:
+    - df (DataFrame): The pandas DataFrame containing the data.
+    - variables (list): List of unique variables to generate combinations.
+    - data_path (str): Path where the output Excel file will be saved.
+    - data_name (str): Name of the output Excel file.
+    - min_length (int): Minimum length of combinations to generate. Defaults to 2.
+
+    Returns:
+    - summary_tables (dict): Dictionary of summary tables.
+    - all_combinations (list): List of all generated combinations.
+    """
+    summary_tables = {}
+    grand_total = len(df)
+    all_combinations = []
+
+    # Generate all possible combinations of the unique variables
+    for i in range(min_length, len(variables) + 1):
+        for combination in combinations(variables, i):
+            all_combinations.append(combination)
+            for col in combination:
+                df[col] = df[col].astype(str)
+
+            # Count
+            count_df = df.groupby(list(combination)).size().reset_index(name="Count")
+            # Proportion as percentage of grand total
+            count_df["Proportion"] = (count_df["Count"] / grand_total * 100).fillna(0)
+
+            summary_tables[tuple(combination)] = count_df
+
+    # Save each dataframe as a separate sheet in an Excel file
+    file_path = f"{data_path}/{data_name}"
+    with pd.ExcelWriter(file_path, engine="xlsxwriter") as writer:
+        for combination, table in summary_tables.items():
+            sheet_name = "_".join(combination)[
+                :31
+            ]  # Excel sheet names must be <= 31 characters
+            table.to_excel(writer, sheet_name=sheet_name, index=False)
+
+    print(f"Data saved to {file_path}")
+
+    return summary_tables, all_combinations
 
 
 ################################################################################
@@ -443,10 +513,10 @@ def stacked_crosstab_plot(
     return_dict=False,  # New parameter to control whether to return the dictionary
 ):
     """
-    Generates pairs of stacked bar plots for specified columns against ground
-    truth columns, with the first plot showing absolute distributions and the
-    second plot showing normalized distributions. Offers customization options for
-    plot titles, colors, and more. Also stores and displays crosstabs.
+    Generates pairs of stacked bar plots for specified columns against
+    ground truth columns, with the first plot showing absolute distributions
+    and the second plot showing normalized distributions. Offers customization
+    options for plot titles, colors, and more. Also stores and displays crosstabs.
 
     Parameters:
     - x (int): The width of the figure.
@@ -455,25 +525,39 @@ def stacked_crosstab_plot(
     - df (DataFrame): The pandas DataFrame containing the data.
     - col (str): The name of the column in the DataFrame to be analyzed.
     - func_col (list): List of ground truth columns to be analyzed.
-    - legend_labels_list (list): List of legend labels for each ground truth column.
+    - legend_labels_list (list): List of legend labels for each ground truth
+      column.
     - title (list): List of titles for the plots.
     - file_prefix (str): Prefix for the filename.
-    - kind (str, optional): The kind of plot to generate (e.g., 'bar', 'barh'). Defaults to 'bar'.
-    - width (float, optional): The width of the bars in the bar plot. Defaults to 0.9.
-    - rot (int, optional): The rotation angle of the x-axis labels. Defaults to 0.
-    - ascending (bool, optional): Determines the sorting order of the DataFrame based on the 'col'. Defaults to True.
-    - string (str, optional): Descriptive string to include in the title of the plots.
-    - custom_order (list, optional): Specifies a custom order for the categories in the 'col'. If provided, the DataFrame is sorted according to this order.
-    - image_path_png (str, optional): Directory path where generated PNG plot images will be saved.
-    - image_path_svg (str, optional): Directory path where generated SVG plot images will be saved.
+    - kind (str, optional): The kind of plot to generate (e.g., 'bar', 'barh').
+      Defaults to 'bar'.
+    - width (float, optional): The width of the bars in the bar plot. Defaults
+      to 0.9.
+    - rot (int, optional): The rotation angle of the x-axis labels. Defaults
+      to 0.
+    - ascending (bool, optional): Determines the sorting order of the DataFrame
+      based on the 'col'. Defaults to True.
+    - string (str, optional): Descriptive string to include in the title of the
+      plots.
+    - custom_order (list, optional): Specifies a custom order for the categories
+      in the 'col'. If provided, the DataFrame is sorted according to this order.
+    - image_path_png (str, optional): Directory path where generated PNG plot
+      images will be saved.
+    - image_path_svg (str, optional): Directory path where generated SVG plot
+      images will be saved.
     - img_string (str, optional): Filename for the saved plot images.
-    - save_formats (list, optional): List of file formats to save the plot images in.
-    - color (list, optional): List of colors to use for the plots. If not provided, a default color scheme is used.
-    - output (str, optional): Specify the output type: "plots_only", "crosstabs_only", or "both". Defaults to "both".
-    - return_dict (bool, optional): Specify whether to return the crosstabs dictionary. Defaults to False.
+    - save_formats (list, optional): List of file formats to save the plot
+      images in.
+    - color (list, optional): List of colors to use for the plots. If not
+      provided, a default color scheme is used.
+    - output (str, optional): Specify the output type: "plots_only",
+      "crosstabs_only", or "both". Defaults to "both".
+    - return_dict (bool, optional): Specify whether to return the crosstabs
+      dictionary. Defaults to False.
 
     Returns:
-    - crosstabs_dict (dict): Dictionary of crosstabs DataFrames if return_dict is True.
+    - crosstabs_dict (dict): Dictionary of crosstabs DataFrames if return_dict
+      is True.
     - None: If return_dict is False.
     """
 
