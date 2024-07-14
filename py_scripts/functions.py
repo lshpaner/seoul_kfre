@@ -418,32 +418,35 @@ def create_metrics_boxplots(
 ################################################################################
 
 
-def stacked_plot(
+def stacked_crosstab_plot(
     x,
     y,
     p,
     df,
     col,
-    truth,
-    condition,
-    kind,
-    width,
-    rot,
+    func_col,
+    legend_labels_list,
+    title,
+    file_prefix,  # New parameter for filename prefix
+    kind="bar",
+    width=0.9,
+    rot=0,
     ascending=True,
     string=None,
     custom_order=None,
-    legend_labels=False,
-    image_path=None,
+    image_path_png=None,
+    image_path_svg=None,
     img_string=None,
     save_formats=None,
-    custom_title=None,
     color=None,
+    output="both",  # New parameter to specify output type
+    return_dict=False,  # New parameter to control whether to return the dictionary
 ):
     """
-    Generates a pair of stacked bar plots for a specified column against a ground
-    truth column, with the first plot showing absolute distributions and the
+    Generates pairs of stacked bar plots for specified columns against ground
+    truth columns, with the first plot showing absolute distributions and the
     second plot showing normalized distributions. Offers customization options for
-    plot titles, colors, and more.
+    plot titles, colors, and more. Also stores and displays crosstabs.
 
     Parameters:
     - x (int): The width of the figure.
@@ -451,125 +454,143 @@ def stacked_plot(
     - p (int): The padding between the subplots.
     - df (DataFrame): The pandas DataFrame containing the data.
     - col (str): The name of the column in the DataFrame to be analyzed.
-    - truth (str): The name of the ground truth column in the DataFrame.
-    - condition: Unused parameter, included for future use.
-    - kind (str): The kind of plot to generate (e.g., 'bar', 'barh').
-    - width (float): The width of the bars in the bar plot.
-    - rot (int): The rotation angle of the x-axis labels.
-    - ascending (bool, optional): Determines the sorting order of the DataFrame
-      based on the 'col'. Defaults to True.
+    - func_col (list): List of ground truth columns to be analyzed.
+    - legend_labels_list (list): List of legend labels for each ground truth column.
+    - title (list): List of titles for the plots.
+    - file_prefix (str): Prefix for the filename.
+    - kind (str, optional): The kind of plot to generate (e.g., 'bar', 'barh'). Defaults to 'bar'.
+    - width (float, optional): The width of the bars in the bar plot. Defaults to 0.9.
+    - rot (int, optional): The rotation angle of the x-axis labels. Defaults to 0.
+    - ascending (bool, optional): Determines the sorting order of the DataFrame based on the 'col'. Defaults to True.
     - string (str, optional): Descriptive string to include in the title of the plots.
-      If `custom_title` is not provided, this string is used as part of the
-      constructed title.
-    - custom_order (list, optional): Specifies a custom order for the categories
-      in the 'col'. If provided, the DataFrame is sorted according to this order.
-    - legend_labels (bool or list, optional): Specifies whether to display legend labels
-      and what those labels should be. If False, no legend is displayed. If a
-      list, the list values are used as legend labels.
-    - image_path (str, optional): Directory path where generated plot image will be saved.
-    - img_string (str, optional): Filename for the saved plot image.
+    - custom_order (list, optional): Specifies a custom order for the categories in the 'col'. If provided, the DataFrame is sorted according to this order.
+    - image_path_png (str, optional): Directory path where generated PNG plot images will be saved.
+    - image_path_svg (str, optional): Directory path where generated SVG plot images will be saved.
+    - img_string (str, optional): Filename for the saved plot images.
     - save_formats (list, optional): List of file formats to save the plot images in.
-    - custom_title (str, optional): Custom title for the plots. If provided, it overrides
-      the title constructed from `string` and `truth`.
-    - color (list, optional): List of colors to use for the plots. If not provided,
-      a default color scheme is used.
+    - color (list, optional): List of colors to use for the plots. If not provided, a default color scheme is used.
+    - output (str, optional): Specify the output type: "plots_only", "crosstabs_only", or "both". Defaults to "both".
+    - return_dict (bool, optional): Specify whether to return the crosstabs dictionary. Defaults to False.
 
     Returns:
-    - None: The function creates & displays the plots but doesn't return any value.
-
-    Note:
-    - The function assumes the matplotlib and pandas libraries have been
-      imported as plt and pd respectively.
-    - The function automatically handles the layout and spacing of the subplots
-      to prevent overlap.
+    - crosstabs_dict (dict): Dictionary of crosstabs DataFrames if return_dict is True.
+    - None: If return_dict is False.
     """
+
+    # Initialize the dictionary to store crosstabs
+    crosstabs_dict = {}
 
     # Default color settings
     if color is None:
         color = ["#00BFC4", "#F8766D"]  # Default colors
 
-    # Setting custom order if provided
-    if custom_order:
-        df[col] = pd.Categorical(df[col], categories=custom_order, ordered=True)
-        df.sort_values(
-            by=col, inplace=True
-        )  # Ensure the DataFrame respects the custom ordering
+    # Loop through each condition and create the plots
+    for truth, legend, tit in zip(func_col, legend_labels_list, title):
+        func_col_filename_png = os.path.join(
+            image_path_png, f"{file_prefix}_{truth}.png"
+        )
+        func_col_filename_svg = os.path.join(
+            image_path_svg, f"{file_prefix}_{truth}.svg"
+        )
 
-    fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(x, y))
-    fig.tight_layout(w_pad=5, pad=p, h_pad=5)
-    # fig.suptitle(
-    #     "Absolute Distributions vs. Normalized Distributions",
-    #     fontsize=12,
-    # )
+        image_path = {"png": func_col_filename_png, "svg": func_col_filename_svg}
 
-    # Crosstabulation of column of interest and ground truth
-    crosstabdest = pd.crosstab(df[col], df[truth])
+        # Setting custom order if provided
+        if custom_order:
+            df[col] = pd.Categorical(df[col], categories=custom_order, ordered=True)
+            df.sort_values(by=col, inplace=True)
 
-    # Normalized crosstabulation
-    crosstabdestnorm = crosstabdest.div(crosstabdest.sum(1), axis=0)
+        # Crosstabulation of column of interest and ground truth
+        crosstabdest = pd.crosstab(df[col], df[truth])
 
-    # Title construction logic with prioritization
-    if custom_title is not None:
-        # If custom_title is provided, use it directly for title1
-        title1 = custom_title
-        # Decide if you want title2 to automatically append "(Normalized)" or not
-        title2 = custom_title + " (Normalized)"  # or just custom_title if you prefer
-    else:
-        # Construct titles using string and truth if custom_title is not provided
-        base_title = (
-            string if string else "Distribution"
-        )  # Default title component if string is None
-        title1 = f"{base_title} by {truth.capitalize()}"
-        title2 = f"{base_title} by {truth.capitalize()} (Normalized)"
+        # Normalized crosstabulation
+        crosstabdestnorm = crosstabdest.div(crosstabdest.sum(1), axis=0)
 
-    xlabel1 = xlabel2 = f"{col}"
-    ylabel1 = "Count"
-    ylabel2 = "Density"
+        # Create the full crosstab with percentages
+        crosstab_full = pd.crosstab(
+            df[col], df[truth], margins=True, margins_name="Total"
+        )
+        if len(legend) == 2:
+            crosstab_full = crosstab_full.rename(columns={0: legend[0], 1: legend[1]})
+            crosstab_full[legend[1] + "_%"] = (
+                round(crosstab_full[legend[1]] / crosstab_full["Total"], 2) * 100
+            )
+            crosstab_full[legend[0] + "_%"] = (
+                round(crosstab_full[legend[0]] / crosstab_full["Total"], 2) * 100
+            )
+            crosstab_full["Total_%"] = (
+                crosstab_full[legend[1] + "_%"] + crosstab_full[legend[0] + "_%"]
+            )
 
-    # Plotting the first stacked bar graph
-    crosstabdest.plot(
-        kind=kind,
-        stacked=True,
-        title=title1,
-        ax=axes[0],
-        color=color,
-        width=width,
-        rot=rot,
-        fontsize=12,
-    )
-    axes[0].set_title(title1, fontsize=12)
-    axes[0].set_xlabel(xlabel1, fontsize=12)
-    axes[0].set_ylabel(ylabel1, fontsize=12)
-    axes[0].legend(legend_labels, fontsize=12)
+        # Store the crosstab in the dictionary
+        crosstabs_dict[tit] = crosstab_full
 
-    # Plotting the second, normalized stacked bar graph
-    crosstabdestnorm.plot(
-        kind=kind,
-        stacked=True,
-        title=title2,
-        ylabel="Density",
-        ax=axes[1],
-        color=color,
-        width=width,
-        rot=rot,
-        fontsize=12,
-    )
-    axes[1].set_title(label=title2, fontsize=12)
-    axes[1].set_xlabel(xlabel2, fontsize=12)
-    axes[1].set_ylabel(ylabel2, fontsize=12)
-    axes[1].legend(legend_labels, fontsize=12)
+        if output in ["plots_only", "both"]:
+            fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(x, y))
+            fig.tight_layout(w_pad=5, pad=p, h_pad=5)
 
-    fig.align_ylabels()
+            # Title construction logic
+            title1 = f"Prevalence of {tit} by {col.replace('_', ' ').title()}"
+            title2 = (
+                f"Prevalence of {tit} by {col.replace('_', ' ').title()} (Normalized)"
+            )
 
-    if img_string and save_formats and isinstance(image_path, dict):
-        for save_format in save_formats:
-            if save_format in image_path:
-                # `save_path` should be the full file path including the
-                # filename, not a directory.
-                full_path = image_path[save_format]
-                plt.savefig(full_path, bbox_inches="tight")
+            xlabel1 = xlabel2 = f"{col.replace('_', ' ').title()}"
+            ylabel1 = "Count"
+            ylabel2 = "Density"
 
-    plt.show()
+            # Plotting the first stacked bar graph
+            crosstabdest.plot(
+                kind=kind,
+                stacked=True,
+                title=title1,
+                ax=axes[0],
+                color=color,
+                width=width,
+                rot=rot,
+                fontsize=12,
+            )
+            axes[0].set_title(title1, fontsize=12)
+            axes[0].set_xlabel(xlabel1, fontsize=12)
+            axes[0].set_ylabel(ylabel1, fontsize=12)
+            axes[0].legend(legend, fontsize=12)
+
+            # Plotting the second, normalized stacked bar graph
+            crosstabdestnorm.plot(
+                kind=kind,
+                stacked=True,
+                title=title2,
+                ylabel="Density",
+                ax=axes[1],
+                color=color,
+                width=width,
+                rot=rot,
+                fontsize=12,
+            )
+            axes[1].set_title(label=title2, fontsize=12)
+            axes[1].set_xlabel(xlabel2, fontsize=12)
+            axes[1].set_ylabel(ylabel2, fontsize=12)
+            axes[1].legend(legend, fontsize=12)
+
+            fig.align_ylabels()
+
+            if img_string and save_formats and isinstance(image_path, dict):
+                for save_format in save_formats:
+                    if save_format in image_path:
+                        full_path = image_path[save_format]
+                        plt.savefig(full_path, bbox_inches="tight")
+
+            plt.show()
+
+    # Display the crosstabs if output includes crosstabs
+    if output in ["crosstabs_only", "both"]:
+        for col, crosstab in crosstabs_dict.items():
+            print(f"Crosstab for {col}:")
+            display(crosstab)
+
+    # Return the crosstabs_dict only if return_dict is True
+    if return_dict:
+        return crosstabs_dict
 
 
 ################################################################################
