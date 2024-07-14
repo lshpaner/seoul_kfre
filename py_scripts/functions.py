@@ -425,10 +425,10 @@ def stacked_plot(
     df,
     col,
     truth,
+    condition,
     kind,
     width,
     rot,
-    condition=None,
     ascending=True,
     string=None,
     custom_order=None,
@@ -524,7 +524,7 @@ def stacked_plot(
 
     xlabel1 = xlabel2 = f"{col}"
     ylabel1 = "Count"
-    ylabel2 = "Frequency"
+    ylabel2 = "Density"
 
     # Plotting the first stacked bar graph
     crosstabdest.plot(
@@ -547,7 +547,7 @@ def stacked_plot(
         kind=kind,
         stacked=True,
         title=title2,
-        ylabel="Frequency",
+        ylabel="Density",
         ax=axes[1],
         color=color,
         width=width,
