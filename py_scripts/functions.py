@@ -27,32 +27,61 @@ def ensure_directory(path):
 ################################################################################
 
 
-def add_patient_ids(df, seed=None):
+def add_ids(df, column_name="Patient_ID", seed=None):
     """
-    Add a column of unique, 9-digit patient IDs to the dataframe.
+    Add a column of unique, 9-digit IDs to the dataframe.
 
-    This function sets a random seed and then generates a 9-digit patient ID for
-    each row in the dataframe. The new IDs are added as a new 'Patient_ID'
-    column, which is placed as the first column in the dataframe.
+    This function sets a random seed and then generates a 9-digit ID for
+    each row in the dataframe. The new IDs are added as a new column with
+    the specified column name, which is placed as the first column in the dataframe.
 
     Args:
-        df (pd.DataFrame): The dataframe to add patient IDs to.
-        seed (int, optional): The seed for the random number generator.
-        Defaults to 222.
+        df (pd.DataFrame): The dataframe to add IDs to.
+        column_name (str): The name of the new column for the IDs.
+        seed (int, optional): The seed for the random number generator. Defaults to None.
 
     Returns:
-        pd.DataFrame: The updated dataframe with the new 'Patient_ID' column.
+        pd.DataFrame: The updated dataframe with the new ID column.
     """
     random.seed(seed)
 
     # Generate a list of unique IDs
-    patient_ids = ["".join(random.choices("0123456789", k=9)) for _ in range(len(df))]
+    ids = ["".join(random.choices("0123456789", k=9)) for _ in range(len(df))]
 
     # Create a new column in df for these IDs
-    df["Patient_ID"] = patient_ids
+    df[column_name] = ids
 
-    # Make 'Patient_ID' the first column and set it to index
-    df = df.set_index("Patient_ID")
+    # Make the new ID column the first column and set it to index
+    df = df.set_index(column_name)
+
+    return df
+
+
+def strip_trailing_period(df, column_name):
+    """
+    Strip the trailing period from floats in a specified column of a DataFrame, if present.
+
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        The DataFrame containing the column to be processed.
+
+    column_name : str
+        The name of the column containing floats with potential trailing periods.
+
+    Returns:
+    --------
+    pd.DataFrame
+        The updated DataFrame with the trailing periods removed from the specified column.
+    """
+
+    def fix_value(value):
+        value_str = str(value)
+        if value_str.endswith("."):
+            value_str = value_str.rstrip(".")
+        return float(value_str)
+
+    df[column_name] = df[column_name].apply(fix_value)
 
     return df
 
@@ -567,8 +596,9 @@ def kde_distributions(
     single_var_image_path_png=None,
     single_var_image_path_svg=None,
     single_var_image_filename=None,
+    y_axis="count",  # Parameter to control y-axis ('count' or 'density')
+    plot_type="both",  # Parameter to control the plot type ('hist', 'kde', or 'both')
 ):
-    
     """
     Generate KDE or histogram distribution plots for specified columns in a DataFrame.
 
@@ -626,18 +656,36 @@ def kde_distributions(
         Directory path to save the SVG images of the separate distribution plots.
 
     single_var_image_filename : str, optional
-        Filename to use when saving the separate distribution plots. The variable name will be appended to this filename.
+        Filename to use when saving the separate distribution plots.
+        The variable name will be appended to this filename.
+
+    y_axis : str, optional (default='count')
+        The type of y-axis to display ('count' or 'density').
+
+    plot_type : str, optional (default='both')
+        The type of plot to generate ('hist', 'kde', or 'both').
 
     Returns:
     --------
     None
     """
-    
+
     if not dist_list:
         print("Error: No distribution list provided.")
         return
 
-    # Calculate the number of columns needed
+    y_axis = y_axis.lower()
+    if y_axis not in ["count", "density"]:
+        raise ValueError('y_axis can either be "count" or "density"')
+
+    plot_type = plot_type.lower()
+    if plot_type not in ["hist", "kde", "both"]:
+        raise ValueError('plot_type can either be "hist", "kde", or "both"')
+
+    # Calculate the number of plots
+    num_plots = len(dist_list)
+    total_slots = n_rows * n_cols
+
     # Create subplots grid
     fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols, figsize=(x, y))
 
@@ -645,17 +693,34 @@ def kde_distributions(
     axes = axes.flatten()
 
     # Iterate over the provided column list and corresponding axes
-    for ax, col in zip(axes, dist_list):
+    for ax, col in zip(axes[:num_plots], dist_list):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             # Wrap the title if it's too long
             title = f"Distribution of {col}"
-            sns.histplot(df[col], kde=kde, ax=ax)
+
+            if plot_type == "hist" or plot_type == "both":
+                sns.histplot(
+                    df[col],
+                    kde=False if plot_type == "hist" else kde,
+                    ax=ax,
+                    stat="density" if y_axis == "density" else "count",
+                )
+            if plot_type == "kde":
+                sns.kdeplot(df[col], ax=ax, fill=True)
+            elif plot_type == "both":
+                sns.kdeplot(df[col], ax=ax)
+
+            ax.set_ylabel("Density" if y_axis == "density" else "Count")
             ax.set_title("\n".join(textwrap.wrap(title, width=text_wrap)))
+
+    # Hide any remaining axes
+    for ax in axes[num_plots:]:
+        ax.axis("off")
 
     # Adjust layout with specified padding
     plt.tight_layout(w_pad=w_pad, h_pad=h_pad)
-    
+
     # Save files if paths are provided
     if image_path_png and image_filename:
         plt.savefig(
@@ -676,20 +741,41 @@ def kde_distributions(
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", UserWarning)
                 title = f"Distribution of {var}"
-                sns.histplot(df[var], kde=kde, ax=ax)
+
+                if plot_type == "hist" or plot_type == "both":
+                    sns.histplot(
+                        df[var],
+                        kde=False if plot_type == "hist" else kde,
+                        ax=ax,
+                        stat="density" if y_axis == "density" else "count",
+                    )
+                if plot_type == "kde":
+                    sns.kdeplot(df[var], ax=ax, fill=True)
+                elif plot_type == "both":
+                    sns.kdeplot(df[var], ax=ax)
+
+                ax.set_ylabel("Density" if y_axis == "density" else "Count")
                 ax.set_title("\n".join(textwrap.wrap(title, width=text_wrap)))
-            
+
             plt.tight_layout()
-            
+
             # Save files for the variable of interest if paths are provided
             if single_var_image_path_png and single_var_image_filename:
                 plt.savefig(
-                    os.path.join(single_var_image_path_png, f"{single_var_image_filename}_{var}.png"),
+                    os.path.join(
+                        single_var_image_path_png,
+                        f"{single_var_image_filename}_{var}.png",
+                    ),
                     bbox_inches=bbox_inches,
                 )
             if single_var_image_path_svg and single_var_image_filename:
                 plt.savefig(
-                    os.path.join(single_var_image_path_svg, f"{single_var_image_filename}_{var}.svg"),
+                    os.path.join(
+                        single_var_image_path_svg,
+                        f"{single_var_image_filename}_{var}.svg",
+                    ),
                     bbox_inches=bbox_inches,
                 )
-            plt.show()
+            plt.close(
+                fig
+            )  # Close the figure after saving to avoid displaying it multiple times
