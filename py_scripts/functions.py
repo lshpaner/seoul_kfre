@@ -631,10 +631,6 @@ def create_metrics_boxplots(
 ######################### Stacked Bar Plot w/ Crosstab #########################
 ################################################################################
 
-import pandas as pd
-import matplotlib.pyplot as plt
-import os
-
 
 def stacked_crosstab_plot(
     x,
@@ -701,7 +697,6 @@ def stacked_crosstab_plot(
     return_dict is True.
     - None: If return_dict is False.
     """
-    df = df.copy()
     # Initialize the dictionary to store crosstabs
     crosstabs_dict = {}
     # Default color settings
@@ -712,7 +707,6 @@ def stacked_crosstab_plot(
     ]
     if missing_cols:
         raise KeyError(f"Columns missing in DataFrame: {missing_cols}")
-
     # Loop through each condition and create the plots
     for truth, legend, tit in zip(func_col, legend_labels_list, title):
         func_col_filename_png = os.path.join(
@@ -722,25 +716,25 @@ def stacked_crosstab_plot(
             image_path_svg, f"{file_prefix}_{truth}.svg"
         )
         image_path = {"png": func_col_filename_png, "svg": func_col_filename_svg}
-
+        # Work on a copy of the DataFrame to avoid modifying the original
+        df_copy = df.copy()
         # Setting custom order if provided
         if custom_order:
-            df[col] = pd.Categorical(df[col], categories=custom_order, ordered=True)
-            df.sort_values(by=col, inplace=True)
-
+            df_copy[col] = pd.Categorical(
+                df_copy[col], categories=custom_order, ordered=True
+            )
+            df_copy.sort_values(by=col, inplace=True)
         # Verify the DataFrame state before creating plots
         fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(x, y))
         fig.tight_layout(w_pad=5, pad=p, h_pad=5)
-
         # Title construction logic
         title1 = f"Prevalence of {tit} by {col.replace('_', ' ').title()}"
         title2 = f"Prevalence of {tit} by {col.replace('_', ' ').title()} (Normalized)"
         xlabel1 = xlabel2 = f"{col.replace('_', ' ').title()}"
         ylabel1 = "Count"
         ylabel2 = "Density"
-
         # Plotting the first stacked bar graph
-        crosstabdest = pd.crosstab(df[col], df[truth])
+        crosstabdest = pd.crosstab(df_copy[col], df_copy[truth])
         crosstabdest.columns = legend  # Rename the columns to match the legend
         crosstabdest.plot(
             kind=kind,
@@ -756,7 +750,6 @@ def stacked_crosstab_plot(
         axes[0].set_xlabel(xlabel1, fontsize=12)
         axes[0].set_ylabel(ylabel1, fontsize=12)
         axes[0].legend(legend, fontsize=12)
-
         # Plotting the second, normalized stacked bar graph
         crosstabdestnorm = crosstabdest.div(crosstabdest.sum(1), axis=0)
         crosstabdestnorm.plot(
@@ -774,63 +767,56 @@ def stacked_crosstab_plot(
         axes[1].set_xlabel(xlabel2, fontsize=12)
         axes[1].set_ylabel(ylabel2, fontsize=12)
         axes[1].legend(legend, fontsize=12)
-
         fig.align_ylabels()
-
         if save_formats and isinstance(image_path, dict):
             for save_format in save_formats:
                 if save_format in image_path:
                     full_path = image_path[save_format]
                     plt.savefig(full_path, bbox_inches="tight")
-
         plt.show()
         plt.close(fig)  # Ensure plot is closed after showing
 
-        # Reset the column order after sorting
-        if custom_order:
-            df[col] = pd.Categorical(df[col], ordered=False)
-
     legend_counter = 0
-    # First run of the crosstab, accounting for totals only
+    # first run of the crosstab, accounting for totals only
     for col_results in func_col:
         crosstab_df = pd.crosstab(
-            df[col],
-            df[col_results],
+            df_copy[col],
+            df_copy[col_results],
             margins=True,
             margins_name="Total",
         )
-        # Capture title for the crosstab
+        # capture title for the crosstab
         title_label = col_results  # Use col_results as the key
-        # Rename columns
-        crosstab_df = crosstab_df.rename(
+        # rename columns
+        crosstab_df.rename(
             columns={
                 0: legend_labels_list[legend_counter][0],
                 1: legend_labels_list[legend_counter][1],
                 "All": "Total",
             },
-            # inplace=True,
+            inplace=True,
         )
-        # Re-do the crosstab, this time, accounting for normalized data
+        # re-do the crosstab, this time, accounting for normalized data
         crosstab_df_norm = pd.crosstab(
-            df[col],
-            df[col_results],
+            df_copy[col],
+            df_copy[col_results],
             normalize="index",
             margins=True,
             margins_name="Total",
         )
         crosstab_df_norm = crosstab_df_norm.mul(100).round(2)
-        crosstab_df_norm = crosstab_df_norm.rename(
+        crosstab_df_norm.rename(
             columns={
                 0: legend_labels_list[legend_counter][0] + "_%",
                 1: legend_labels_list[legend_counter][1] + "_%",
                 "All": "Total_%",
             },
-            # inplace=True,
+            inplace=True,
         )
         crosstab_df = pd.concat([crosstab_df, crosstab_df_norm], axis=1)
-        # Process counter
+        # process counter
         legend_counter += 1
-        # Display results
+        # display results
         print("Crosstab for " + col_results)
         display(crosstab_df)
         # Store the crosstab in the dictionary
