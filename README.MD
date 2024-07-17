@@ -59,7 +59,7 @@ The validation process involves applying the KFRE equations to the patient datas
 - To use this repository, you need to have Python installed. You can then clone the repository and install the required dependencies.
 
 ```bash
-git clone https://github.com/username/repository.git
+git clone https://github.com/lshpaner/seoul_kfre.git
 cd repository
 pip install -r requirements.txt
 ```
