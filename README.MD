@@ -56,6 +56,8 @@ The dataset used in this project is an anonymized 16,619 patient dataset from Se
 
 ## Exploratory Data Analysis (EDA)
 
+[Jupyter Notebook](https://github.com/lshpaner/seoul_kfre/blob/main/notebooks/data_exploration.ipynb)
+
 EDA is conducted to understand the demographics and clinical characteristics of the patient population. This involves:
 
 - Summarizing patient demographics (age, gender, etc.).  
