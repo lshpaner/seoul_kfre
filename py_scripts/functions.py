@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from itertools import combinations
 from datetime import datetime
+from IPython.display import display
 import matplotlib.pyplot as plt
 import seaborn as sns
 import textwrap
@@ -184,6 +185,78 @@ def data_types(df):
 
 
 ################################################################################
+########################### DataFrame Columns ##################################
+################################################################################
+
+
+def dataframe_columns(df):
+    """
+    Function to analyze dataframe columns, such as dtype, null,
+    and max unique value and percentages.
+    Args:
+        df (dataframe): the dataframe to analyze
+    Raises:
+        No Raises
+        Null and empty string pre-processing
+    Returns:
+        str:       Prints the shape of the dataframe at top
+        dataframe: column_value_counts list in DataFrame format
+    """
+    print("Shape: ", df.shape, "\n")
+    # convert dbdate dtype to datetime
+    try:
+        for c in df.select_dtypes("dbdate").columns:
+            df[c] = pd.to_datetime(df[c])
+    except:
+        pass
+    # Null pre-processing with Pandas NA
+    df = df.fillna(pd.NA)
+    # Replace empty strings with Pandas NA
+    df = df.replace("", pd.NA)
+    # Begin Process...
+    columns_value_counts = []
+    for cols in df.columns:
+        columns_value_counts.append(
+            {
+                "column": cols,
+                "dtype": df[cols].dtypes,
+                "null_total": df[cols].isnull().sum(),
+                "null_pct": round(df[cols].isnull().sum() / df.shape[0] * 100, 2),
+                "unique_values_total": df[cols].astype(str).nunique(),
+                "max_unique_value": df[cols]
+                .astype(str)
+                .replace("<NA>", "null")
+                .replace("NaT", "null")
+                .value_counts()
+                .to_frame()
+                .head(1)
+                .reset_index()
+                .iloc[:, [0]][cols][0],
+                "max_unique_value_total": df[cols]
+                .astype(str)
+                .value_counts()
+                .to_frame()
+                .head(1)
+                .reset_index(drop=True)
+                .iloc[:, [0]]["count"][0],
+                "max_unique_value_pct": round(
+                    df[cols]
+                    .astype(str)
+                    .value_counts()
+                    .to_frame()
+                    .head(1)
+                    .reset_index(drop=True)
+                    .iloc[:, [0]]["count"][0]
+                    / df.shape[0]
+                    * 100,
+                    2,
+                ),
+            }
+        )
+    return pd.DataFrame(columns_value_counts)
+
+
+################################################################################
 ########################### Summarize All Combinations #########################
 ################################################################################
 
@@ -214,15 +287,20 @@ def summarize_all_combinations(
     grand_total = len(df)
     all_combinations = []
 
+    # Create a copy of the DataFrame to avoid modifying the original
+    df_copy = df.copy()
+
     # Generate all possible combinations of the unique variables
     for i in range(min_length, len(variables) + 1):
         for combination in combinations(variables, i):
             all_combinations.append(combination)
             for col in combination:
-                df[col] = df[col].astype(str)
+                df_copy[col] = df_copy[col].astype(str)
 
             # Count
-            count_df = df.groupby(list(combination)).size().reset_index(name="Count")
+            count_df = (
+                df_copy.groupby(list(combination)).size().reset_index(name="Count")
+            )
             # Proportion as percentage of grand total
             count_df["Proportion"] = (count_df["Count"] / grand_total * 100).fillna(0)
 
@@ -240,6 +318,72 @@ def summarize_all_combinations(
     print(f"Data saved to {file_path}")
 
     return summary_tables, all_combinations
+
+
+################################################################################
+############################## Contingency Table ###############################
+################################################################################
+
+
+def contingency_table(df, col1, col2, SortBy):
+    """
+    Function to create contingency table from one or two columns in dataframe,
+    with sorting options
+    Args:
+        df (dataframe): the dataframe to analyze
+        col1 (str): name of the first column in the dataframe to include
+        col2 (str): name of the second column in the dataframe to include
+                    if no second column, enter "None"
+        SortBy (str): enter 'Group' to sort results by col1 + col2 group
+                    any other value will sort by col1 + col2 group totals
+    Raises:
+        No Raises
+    Returns:
+        dataframe: dataframe with three columns; 'Groups', 'GroupTotal', and 'GroupPct'
+    """
+    cont_df = pd.DataFrame()
+    if col2 != "None":
+        cont_df["Group"] = df[col1].astype(str) + " - " + df[col2].astype(str)
+    else:
+        cont_df["Group"] = df[col1].astype(str)
+    ## get unique group names
+    cont_df2 = pd.DataFrame(cont_df["Group"].unique())
+    cont_df2.columns = ["Groups"]
+    ## results by group
+    cont_final = []
+    for g in cont_df2.Groups:
+        cont_final.append(
+            {
+                "Groups": g,
+                "GroupTotal": cont_df.query("Group == @g")["Group"].count(),
+                "GroupPct": 100
+                * (cont_df.query("Group == @g")["Group"].count() / len(df)),
+            }
+        )
+    ## Sort values based on provided SortBy parameter
+    if SortBy == "Group":
+        cont_final = pd.DataFrame(cont_final).sort_values(by="Groups")
+    else:
+        cont_final = pd.DataFrame(cont_final).sort_values(
+            by="GroupTotal", ascending=False
+        )
+    ## results for all groups
+    all = []
+    all.append(
+        {
+            "Groups": "All",
+            "GroupTotal": cont_final["GroupTotal"].sum(),
+            "GroupPct": cont_final["GroupPct"].sum(),
+        }
+    )
+    all = pd.DataFrame(all)
+    ## Combine results
+    c_table = pd.concat([cont_final, all])
+    ## Update GroupPct to reflect as a percentage
+    c_table["GroupPct"] = round(c_table["GroupPct"], 2).astype(str) + "%"
+    ## to hide index in returned result and left-align the Groups column
+    c_table = c_table.style.hide()
+    return c_table
 
 
 ################################################################################
@@ -484,8 +628,12 @@ def create_metrics_boxplots(
 
 
 ################################################################################
-############################# Stacked Bar Plot #################################
+######################### Stacked Bar Plot w/ Crosstab #########################
 ################################################################################
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
 
 
 def stacked_crosstab_plot(
@@ -497,76 +645,73 @@ def stacked_crosstab_plot(
     func_col,
     legend_labels_list,
     title,
-    file_prefix,  # New parameter for filename prefix
+    file_prefix,
     kind="bar",
     width=0.9,
     rot=0,
-    ascending=True,
-    string=None,
     custom_order=None,
     image_path_png=None,
     image_path_svg=None,
-    img_string=None,
     save_formats=None,
     color=None,
-    output="both",  # New parameter to specify output type
-    return_dict=False,  # New parameter to control whether to return the dictionary
+    output="both",
+    return_dict=False,
 ):
     """
     Generates pairs of stacked bar plots for specified columns against
-    ground truth columns, with the first plot showing absolute distributions
-    and the second plot showing normalized distributions. Offers customization
-    options for plot titles, colors, and more. Also stores and displays crosstabs.
-
+    ground truth columns, with the first plot showing absolute
+    distributions and the second plot showing normalized
+    distributions. Offers customization options for plot titles,
+    colors, and more. Also stores and displays crosstabs.
     Parameters:
     - x (int): The width of the figure.
     - y (int): The height of the figure.
     - p (int): The padding between the subplots.
     - df (DataFrame): The pandas DataFrame containing the data.
-    - col (str): The name of the column in the DataFrame to be analyzed.
+    - col (str): The name of the column in the DataFrame to be
+    analyzed.
     - func_col (list): List of ground truth columns to be analyzed.
-    - legend_labels_list (list): List of legend labels for each ground truth
-      column.
+    - legend_labels_list (list): List of legend labels for each
+    ground truth column.
     - title (list): List of titles for the plots.
     - file_prefix (str): Prefix for the filename.
-    - kind (str, optional): The kind of plot to generate (e.g., 'bar', 'barh').
-      Defaults to 'bar'.
-    - width (float, optional): The width of the bars in the bar plot. Defaults
-      to 0.9.
-    - rot (int, optional): The rotation angle of the x-axis labels. Defaults
-      to 0.
-    - ascending (bool, optional): Determines the sorting order of the DataFrame
-      based on the 'col'. Defaults to True.
-    - string (str, optional): Descriptive string to include in the title of the
-      plots.
-    - custom_order (list, optional): Specifies a custom order for the categories
-      in the 'col'. If provided, the DataFrame is sorted according to this order.
-    - image_path_png (str, optional): Directory path where generated PNG plot
-      images will be saved.
-    - image_path_svg (str, optional): Directory path where generated SVG plot
-      images will be saved.
-    - img_string (str, optional): Filename for the saved plot images.
-    - save_formats (list, optional): List of file formats to save the plot
-      images in.
-    - color (list, optional): List of colors to use for the plots. If not
-      provided, a default color scheme is used.
+    - kind (str, optional): The kind of plot to generate (e.g., 'bar',
+    'barh'). Defaults to 'bar'.
+    - width (float, optional): The width of the bars in the bar plot.
+    Defaults to 0.9.
+    - rot (int, optional): The rotation angle of the x-axis labels.
+    Defaults to 0.
+    - custom_order (list, optional): Specifies a custom order for the
+    categories in the 'col'. If provided, the DataFrame is sorted
+    according to this order.
+    - image_path_png (str, optional): Directory path where generated
+    PNG plot images will be saved.
+    - image_path_svg (str, optional): Directory path where generated
+    SVG plot images will be saved.
+    - save_formats (list, optional): List of file formats to save the
+    plot images in.
+    - color (list, optional): List of colors to use for the plots. If
+    not provided, a default color scheme is used.
     - output (str, optional): Specify the output type: "plots_only",
-      "crosstabs_only", or "both". Defaults to "both".
-    - return_dict (bool, optional): Specify whether to return the crosstabs
-      dictionary. Defaults to False.
-
+    "crosstabs_only", or "both". Defaults to "both".
+    - return_dict (bool, optional): Specify whether to return the
+    crosstabs dictionary. Defaults to False.
     Returns:
-    - crosstabs_dict (dict): Dictionary of crosstabs DataFrames if return_dict
-      is True.
+    - crosstabs_dict (dict): Dictionary of crosstabs DataFrames if
+    return_dict is True.
     - None: If return_dict is False.
     """
-
+    df = df.copy()
     # Initialize the dictionary to store crosstabs
     crosstabs_dict = {}
-
     # Default color settings
     if color is None:
         color = ["#00BFC4", "#F8766D"]  # Default colors
+    missing_cols = [
+        col_name for col_name in [col] + func_col if col_name not in df.columns
+    ]
+    if missing_cols:
+        raise KeyError(f"Columns missing in DataFrame: {missing_cols}")
 
     # Loop through each condition and create the plots
     for truth, legend, tit in zip(func_col, legend_labels_list, title):
@@ -576,7 +721,6 @@ def stacked_crosstab_plot(
         func_col_filename_svg = os.path.join(
             image_path_svg, f"{file_prefix}_{truth}.svg"
         )
-
         image_path = {"png": func_col_filename_png, "svg": func_col_filename_svg}
 
         # Setting custom order if provided
@@ -584,93 +728,113 @@ def stacked_crosstab_plot(
             df[col] = pd.Categorical(df[col], categories=custom_order, ordered=True)
             df.sort_values(by=col, inplace=True)
 
-        # Crosstabulation of column of interest and ground truth
+        # Verify the DataFrame state before creating plots
+        fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(x, y))
+        fig.tight_layout(w_pad=5, pad=p, h_pad=5)
+
+        # Title construction logic
+        title1 = f"Prevalence of {tit} by {col.replace('_', ' ').title()}"
+        title2 = f"Prevalence of {tit} by {col.replace('_', ' ').title()} (Normalized)"
+        xlabel1 = xlabel2 = f"{col.replace('_', ' ').title()}"
+        ylabel1 = "Count"
+        ylabel2 = "Density"
+
+        # Plotting the first stacked bar graph
         crosstabdest = pd.crosstab(df[col], df[truth])
-
-        # Normalized crosstabulation
-        crosstabdestnorm = crosstabdest.div(crosstabdest.sum(1), axis=0)
-
-        # Create the full crosstab with percentages
-        crosstab_full = pd.crosstab(
-            df[col], df[truth], margins=True, margins_name="Total"
+        crosstabdest.columns = legend  # Rename the columns to match the legend
+        crosstabdest.plot(
+            kind=kind,
+            stacked=True,
+            title=title1,
+            ax=axes[0],
+            color=color,
+            width=width,
+            rot=rot,
+            fontsize=12,
         )
-        if len(legend) == 2:
-            crosstab_full = crosstab_full.rename(columns={0: legend[0], 1: legend[1]})
-            crosstab_full[legend[1] + "_%"] = (
-                round(crosstab_full[legend[1]] / crosstab_full["Total"], 2) * 100
-            )
-            crosstab_full[legend[0] + "_%"] = (
-                round(crosstab_full[legend[0]] / crosstab_full["Total"], 2) * 100
-            )
-            crosstab_full["Total_%"] = (
-                crosstab_full[legend[1] + "_%"] + crosstab_full[legend[0] + "_%"]
-            )
+        axes[0].set_title(title1, fontsize=12)
+        axes[0].set_xlabel(xlabel1, fontsize=12)
+        axes[0].set_ylabel(ylabel1, fontsize=12)
+        axes[0].legend(legend, fontsize=12)
 
+        # Plotting the second, normalized stacked bar graph
+        crosstabdestnorm = crosstabdest.div(crosstabdest.sum(1), axis=0)
+        crosstabdestnorm.plot(
+            kind=kind,
+            stacked=True,
+            title=title2,
+            ylabel="Density",
+            ax=axes[1],
+            color=color,
+            width=width,
+            rot=rot,
+            fontsize=12,
+        )
+        axes[1].set_title(label=title2, fontsize=12)
+        axes[1].set_xlabel(xlabel2, fontsize=12)
+        axes[1].set_ylabel(ylabel2, fontsize=12)
+        axes[1].legend(legend, fontsize=12)
+
+        fig.align_ylabels()
+
+        if save_formats and isinstance(image_path, dict):
+            for save_format in save_formats:
+                if save_format in image_path:
+                    full_path = image_path[save_format]
+                    plt.savefig(full_path, bbox_inches="tight")
+
+        plt.show()
+        plt.close(fig)  # Ensure plot is closed after showing
+
+        # Reset the column order after sorting
+        if custom_order:
+            df[col] = pd.Categorical(df[col], ordered=False)
+
+    legend_counter = 0
+    # First run of the crosstab, accounting for totals only
+    for col_results in func_col:
+        crosstab_df = pd.crosstab(
+            df[col],
+            df[col_results],
+            margins=True,
+            margins_name="Total",
+        )
+        # Capture title for the crosstab
+        title_label = col_results  # Use col_results as the key
+        # Rename columns
+        crosstab_df = crosstab_df.rename(
+            columns={
+                0: legend_labels_list[legend_counter][0],
+                1: legend_labels_list[legend_counter][1],
+                "All": "Total",
+            },
+            # inplace=True,
+        )
+        # Re-do the crosstab, this time, accounting for normalized data
+        crosstab_df_norm = pd.crosstab(
+            df[col],
+            df[col_results],
+            normalize="index",
+            margins=True,
+            margins_name="Total",
+        )
+        crosstab_df_norm = crosstab_df_norm.mul(100).round(2)
+        crosstab_df_norm = crosstab_df_norm.rename(
+            columns={
+                0: legend_labels_list[legend_counter][0] + "_%",
+                1: legend_labels_list[legend_counter][1] + "_%",
+                "All": "Total_%",
+            },
+            # inplace=True,
+        )
+        crosstab_df = pd.concat([crosstab_df, crosstab_df_norm], axis=1)
+        # Process counter
+        legend_counter += 1
+        # Display results
+        print("Crosstab for " + col_results)
+        display(crosstab_df)
         # Store the crosstab in the dictionary
-        crosstabs_dict[tit] = crosstab_full
-
-        if output in ["plots_only", "both"]:
-            fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(x, y))
-            fig.tight_layout(w_pad=5, pad=p, h_pad=5)
-
-            # Title construction logic
-            title1 = f"Prevalence of {tit} by {col.replace('_', ' ').title()}"
-            title2 = (
-                f"Prevalence of {tit} by {col.replace('_', ' ').title()} (Normalized)"
-            )
-
-            xlabel1 = xlabel2 = f"{col.replace('_', ' ').title()}"
-            ylabel1 = "Count"
-            ylabel2 = "Density"
-
-            # Plotting the first stacked bar graph
-            crosstabdest.plot(
-                kind=kind,
-                stacked=True,
-                title=title1,
-                ax=axes[0],
-                color=color,
-                width=width,
-                rot=rot,
-                fontsize=12,
-            )
-            axes[0].set_title(title1, fontsize=12)
-            axes[0].set_xlabel(xlabel1, fontsize=12)
-            axes[0].set_ylabel(ylabel1, fontsize=12)
-            axes[0].legend(legend, fontsize=12)
-
-            # Plotting the second, normalized stacked bar graph
-            crosstabdestnorm.plot(
-                kind=kind,
-                stacked=True,
-                title=title2,
-                ylabel="Density",
-                ax=axes[1],
-                color=color,
-                width=width,
-                rot=rot,
-                fontsize=12,
-            )
-            axes[1].set_title(label=title2, fontsize=12)
-            axes[1].set_xlabel(xlabel2, fontsize=12)
-            axes[1].set_ylabel(ylabel2, fontsize=12)
-            axes[1].legend(legend, fontsize=12)
-
-            fig.align_ylabels()
-
-            if img_string and save_formats and isinstance(image_path, dict):
-                for save_format in save_formats:
-                    if save_format in image_path:
-                        full_path = image_path[save_format]
-                        plt.savefig(full_path, bbox_inches="tight")
-
-            plt.show()
-
-    # Display the crosstabs if output includes crosstabs
-    if output in ["crosstabs_only", "both"]:
-        for col, crosstab in crosstabs_dict.items():
-            print(f"Crosstab for {col}:")
-            display(crosstab)
+        crosstabs_dict[col_results] = crosstab_df  # Use col_results as the key
 
     # Return the crosstabs_dict only if return_dict is True
     if return_dict:
@@ -927,10 +1091,14 @@ def create_metrics_boxplots(
         save_individual = True
         save_grid = True
 
+    def get_palette(n_colors):
+        return sns.color_palette("tab10", n_colors=n_colors)
+
     # Save individual plots if required
     if save_individual:
         for met_comp in metrics_boxplot_comp:
-            palette = sns.color_palette("tab10", n_colors=10)
+            unique_vals = df[met_comp].value_counts().count()
+            palette = get_palette(unique_vals)
             for met_list in metrics_list:
                 plt.figure(figsize=(6, 4))  # Adjust the size as needed
                 sns.boxplot(
@@ -969,7 +1137,8 @@ def create_metrics_boxplots(
             if i < len(metrics_list) * len(metrics_boxplot_comp):
                 met_comp = metrics_boxplot_comp[i // len(metrics_list)]
                 met_list = metrics_list[i % len(metrics_list)]
-                palette = sns.color_palette("tab10", n_colors=10)
+                unique_vals = df[met_comp].value_counts().count()
+                palette = get_palette(unique_vals)
                 sns.boxplot(
                     x=met_comp,
                     y=met_list,
