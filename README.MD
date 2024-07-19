@@ -13,7 +13,8 @@ This repository contains the work focused on independently validating the Kidney
 2. [KFRE Python Library](#kfre-python-library)
 3. [Data Description](#data-description)
 4. [Exploratory Data Analysis (EDA)](#exploratory-data-analysis-eda)
-    - [Jupyter Notebook](https://github.com/lshpaner/seoul_kfre/blob/main/notebooks/data_exploration.ipynb)
+    - [Data Exploration: Jupyter Notebook](https://github.com/lshpaner/seoul_kfre/blob/main/notebooks/data_exp_prep.ipynb)
+    - [KFRE Validation: Jupyter Notebook](https://github.com/lshpaner/seoul_kfre/blob/main/notebooks/kfre_validation.ipynb)
 5. [KFRE Validation](#kfre-validation)
 6. [Installation](#installation)
 7. [Results](#results)
@@ -38,11 +39,13 @@ The Kidney Failure Risk Equation (KFRE) is a predictive model developed by Tangr
 │ ├── png_images/  
 │ └── svg_images/  
 ├── notebooks/  
-│ └── data_exploration.ipynb  
+│ ├── data_exp_prep.ipynb  
+│ └── kfre_validation.ipynb  
 ├── py_scripts/  
 │ ├── functions.py  
 │ └── .gitignore  
 └── README.MD  
+
 ```
 
 
