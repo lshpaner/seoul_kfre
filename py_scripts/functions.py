@@ -393,6 +393,38 @@ def contingency_table(df, col1, col2, SortBy):
 
 
 ################################################################################
+############################## Highlight DF Tables #############################
+################################################################################
+
+
+def highlight_columns(df, columns, color="yellow"):
+    """
+    Highlight specific columns in a DataFrame with a specified background color.
+
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        The DataFrame to be styled.
+    columns : list of str
+        List of column names to be highlighted.
+    color : str, optional
+        The background color to be applied for highlighting (default is "yellow").
+
+    Returns:
+    --------
+    pandas.io.formats.style.Styler
+        A Styler object with the specified columns highlighted.
+    """
+
+    def highlight(s):
+        return [
+            f"background-color: {color}" if col in columns else "" for col in s.index
+        ]
+
+    return df.style.apply(highlight, axis=1)
+
+
+################################################################################
 ################################ Cross-Tab Plot ################################
 ################################################################################
 
