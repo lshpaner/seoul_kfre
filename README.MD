@@ -12,8 +12,8 @@ This repository contains the work focused on independently validating the Kidney
     - [Repository Structure](#repository-structure)
 2. [KFRE Python Library](#kfre-python-library)
 3. [Data Description](#data-description)
-4. [Exploratory Data Analysis (EDA)](#exploratory-data-analysis-eda)
-    - [Data Exploration: Jupyter Notebook](https://github.com/lshpaner/seoul_kfre/blob/main/notebooks/data_exp_prep.ipynb)
+4. [Data Exploration and Preprocessing](#data-exploration-and-preprocessing)
+    - [Data Exploration and Preprocessing: Jupyter Notebook](https://github.com/lshpaner/seoul_kfre/blob/main/notebooks/data_exp_prep.ipynb)
     - [KFRE Validation: Jupyter Notebook](https://github.com/lshpaner/seoul_kfre/blob/main/notebooks/kfre_validation.ipynb)
 5. [KFRE Validation](#kfre-validation)
 6. [Installation](#installation)
@@ -62,13 +62,16 @@ The KFRE calculations are performed using a custom Python library developed to r
 
 The dataset used in this project is an anonymized 16,619 patient dataset from Seoul University Hospital with. It includes various demographic and clinical characteristics necessary for calculating the KFRE, such as `age`, `sex`, `GFR`, `hypertension`, `albuminuria`, and other relevant clinical parameters.
 
-## Exploratory Data Analysis (EDA)
+## Data Exploration and Preprocessing
 
-[Data Exploration: Jupyter Notebook](https://github.com/lshpaner/seoul_kfre/blob/main/notebooks/data_exploration.ipynb)
+[Data Exploration and Preprocessing: Jupyter Notebook](https://github.com/lshpaner/seoul_kfre/blob/main/notebooks/data_exploration.ipynb)
 
 EDA is conducted to understand the demographics and clinical characteristics of the patient population. This involves:
 
-- Summarizing patient demographics (age, gender, etc.).  
+- Inspecting data types  
+- Converting `ESRD` outcomes to years 
+- Classifying CKD Stages based on `GFR`  
+- Summarizing patient demographics (age, sex, etc.).  
 - Analyzing clinical characteristics (eGFR levels, albuminuria categories, etc.).  
 - Visualizing distributions and relationships between different variables.
 
