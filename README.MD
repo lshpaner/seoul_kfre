@@ -31,7 +31,7 @@ The Kidney Failure Risk Equation (KFRE) is a predictive model developed by Tangr
 
 ### Repository Structure
 
-
+```bash
 ├── data_output/  
 │ └── summary_tables.xlsx  
 ├── images/  
@@ -43,6 +43,8 @@ The Kidney Failure Risk Equation (KFRE) is a predictive model developed by Tangr
 │ ├── functions.py  
 │ └── .gitignore  
 └── README.MD  
+```
+
 
 ## KFRE Python Library
 
