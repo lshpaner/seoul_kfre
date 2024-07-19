@@ -72,6 +72,8 @@ EDA is conducted to understand the demographics and clinical characteristics of 
 
 ## KFRE Validation
 
+[KFRE Validation: Jupyter Notebook](https://github.com/lshpaner/seoul_kfre/blob/main/notebooks/kfre_validation.ipynb)
+
 The validation process involves applying the KFRE equations to the patient dataset using the custom Python library and assessing the model's performance. This includes:
 
 - Calculating KFRE probabilities for each patient.  
