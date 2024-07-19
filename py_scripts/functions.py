@@ -210,9 +210,15 @@ def dataframe_columns(df):
     except:
         pass
     # Null pre-processing with Pandas NA
-    df = df.fillna(pd.NA)
+    try:
+        df = df.fillna(pd.nan)
+    except:
+        df = df.fillna(pd.NA)
     # Replace empty strings with Pandas NA
-    df = df.replace("", pd.NA)
+    try:
+        df = df.replace("", pd.nan)
+    except:
+        df = df.replace("", pd.NA)
     # Begin Process...
     columns_value_counts = []
     for cols in df.columns:
@@ -1052,6 +1058,7 @@ def create_metrics_boxplots(
     save_individual=True,
     save_grid=True,
     save_both=False,
+    show_legend=True,  # New parameter to toggle legend
 ):
     """
     Create and save individual boxplots, an entire grid of boxplots, or both for
@@ -1068,6 +1075,7 @@ def create_metrics_boxplots(
     - save_individual: Boolean, True if saving each subplot as an individual file.
     - save_grid: Boolean, True if saving the entire grid as one image.
     - save_both: Boolean, True if saving both individual and grid images.
+    - show_legend: Boolean, True if showing the legend in the plots.
     """
     # Ensure the directories exist
     os.makedirs(image_path_png, exist_ok=True)
@@ -1087,7 +1095,7 @@ def create_metrics_boxplots(
             palette = get_palette(unique_vals)
             for met_list in metrics_list:
                 plt.figure(figsize=(6, 4))  # Adjust the size as needed
-                sns.boxplot(
+                ax = sns.boxplot(
                     x=met_comp,
                     y=met_list,
                     data=df,
@@ -1098,6 +1106,11 @@ def create_metrics_boxplots(
                 plt.title(f"Distribution of {met_list} by {met_comp}")
                 plt.xlabel(met_comp)
                 plt.ylabel(met_list)
+
+                # Toggle legend
+                if not show_legend and ax.legend_:
+                    ax.legend_.remove()
+
                 safe_met_list = (
                     met_list.replace(" ", "_")
                     .replace("(", "")
@@ -1137,6 +1150,10 @@ def create_metrics_boxplots(
                 ax.set_title(f"Distribution of {met_list} by {met_comp}")
                 ax.set_xlabel(met_comp)
                 ax.set_ylabel(met_list)
+
+                # Toggle legend
+                if not show_legend and ax.legend_:
+                    ax.legend_.remove()
             else:
                 ax.set_visible(False)
 
