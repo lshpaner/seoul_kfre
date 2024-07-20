@@ -6,7 +6,7 @@ import numpy as np
 ################################################################################
 
 
-def calculate_outcome(df, col, years):
+def calculate_outcome(df, col, years, prefix=None):
     """Calculate outcome based on a given number of years.
 
     This function creates a new column in the dataframe which is populated with
@@ -14,13 +14,17 @@ def calculate_outcome(df, col, years):
 
     Parameters:
     df (pd.DataFrame): DataFrame to perform calculations on.
-    col (column): the column name with an eGFR < 15 flag
+    col (str): The column name with an eGFR < 15 flag.
     years (int): The number of years to use in the condition.
+    prefix (str): Custom prefix for the new column name. Defaults to "ESRD_in".
 
     Returns:
     pd.DataFrame: DataFrame with the new column added.
     """
-    column_name = f"{years}_year_outcome"
+    if prefix is None:
+        prefix = "ESRD_in"
+
+    column_name = f"{prefix}_{years}_year_outcome"
     df[column_name] = np.where((df[col] == 1) & (df["years"] <= years), 1, 0)
     return df
 

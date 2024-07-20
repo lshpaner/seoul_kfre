@@ -334,7 +334,8 @@ def summarize_all_combinations(
 def contingency_table(df, col1, col2, SortBy):
     """
     Function to create contingency table from one or two columns in dataframe,
-    with sorting options
+    with sorting options.
+
     Args:
         df (dataframe): the dataframe to analyze
         col1 (str): name of the first column in the dataframe to include
@@ -342,53 +343,49 @@ def contingency_table(df, col1, col2, SortBy):
                     if no second column, enter "None"
         SortBy (str): enter 'Group' to sort results by col1 + col2 group
                     any other value will sort by col1 + col2 group totals
+
     Raises:
         No Raises
+
     Returns:
         dataframe: dataframe with three columns; 'Groups', 'GroupTotal', and 'GroupPct'
     """
-    cont_df = pd.DataFrame()
     if col2 != "None":
-        cont_df["Group"] = df[col1].astype(str) + " - " + df[col2].astype(str)
+        group_cols = [col1, col2]
     else:
-        cont_df["Group"] = df[col1].astype(str)
-    ## get unique group names
-    cont_df2 = pd.DataFrame(cont_df["Group"].unique())
-    cont_df2.columns = ["Groups"]
-    ## results by group
-    cont_final = []
-    for g in cont_df2.Groups:
-        cont_final.append(
-            {
-                "Groups": g,
-                "GroupTotal": cont_df.query("Group == @g")["Group"].count(),
-                "GroupPct": 100
-                * (cont_df.query("Group == @g")["Group"].count() / len(df)),
-            }
-        )
-    ## Sort values based on provided SortBy parameter
-    if SortBy == "Group":
-        cont_final = pd.DataFrame(cont_final).sort_values(by="Groups")
-    else:
-        cont_final = pd.DataFrame(cont_final).sort_values(
-            by="GroupTotal", ascending=False
-        )
-    ## results for all groups
-    all = []
-    all.append(
-        {
-            "Groups": "All",
-            "GroupTotal": cont_final["GroupTotal"].sum(),
-            "GroupPct": cont_final["GroupPct"].sum(),
-        }
+        group_cols = [col1]
+
+    # Create the contingency table with observed=True
+    cont_df = (
+        df.groupby(group_cols, observed=True).size().reset_index(name="GroupTotal")
     )
-    all = pd.DataFrame(all)
-    ## Combine results
-    c_table = pd.concat([cont_final, all])
-    ## Update GroupPct to reflect as a percentage
-    c_table["GroupPct"] = round(c_table["GroupPct"], 2).astype(str) + "%"
-    ## to hide index in returned result and left-align the Groups column
-    c_table = c_table.style.hide()
+
+    # Calculate the percentage
+    cont_df["GroupPct"] = 100 * cont_df["GroupTotal"] / len(df)
+
+    # Sort values based on provided SortBy parameter
+    if SortBy == "Group":
+        cont_df = cont_df.sort_values(by=group_cols)
+    else:
+        cont_df = cont_df.sort_values(by="GroupTotal", ascending=False)
+
+    # Results for all groups
+    all_groups = pd.DataFrame(
+        [
+            {
+                **{col: "All" for col in group_cols},
+                "GroupTotal": cont_df["GroupTotal"].sum(),
+                "GroupPct": cont_df["GroupPct"].sum(),
+            }
+        ]
+    )
+
+    # Combine results
+    c_table = pd.concat([cont_df, all_groups], ignore_index=True)
+
+    # Update GroupPct to reflect as a percentage rounded to 2 decimal places
+    c_table["GroupPct"] = c_table["GroupPct"].round(2)
+
     return c_table
 
 
