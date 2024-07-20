@@ -568,115 +568,16 @@ def crosstab_plot(
 
 
 ################################################################################
-############################# Box Plots Assortment #############################
-################################################################################
-
-
-def create_metrics_boxplots(
-    df,
-    metrics_list,
-    metrics_boxplot_comp,
-    n_rows,
-    n_cols,
-    image_path_png,
-    image_path_svg,
-    save_individual=True,
-    save_grid=True,
-    save_both=False,
-):
-    """
-    Create and save individual boxplots, an entire grid of boxplots, or both for
-    given metrics and comparisons.
-
-    Parameters:
-    - df: DataFrame containing the data.
-    - metrics_list: List of metric names (columns in df) to plot.
-    - metrics_boxplot_comp: List of comparison categories (columns in df).
-    - n_rows: Number of rows in the subplot grid.
-    - n_cols: Number of columns in the subplot grid.
-    - image_path_png: Directory path to save .png images.
-    - image_path_svg: Directory path to save .svg images.
-    - save_individual: Boolean, True if saving each subplot as an individual file.
-    - save_grid: Boolean, True if saving the entire grid as one image.
-    - save_both: Boolean, True if saving both individual and grid images.
-    """
-    # Ensure the directories exist
-    os.makedirs(image_path_png, exist_ok=True)
-    os.makedirs(image_path_svg, exist_ok=True)
-
-    if save_both:
-        save_individual = True
-        save_grid = True
-
-    # Save individual plots if required
-    if save_individual:
-        for met_comp in metrics_boxplot_comp:
-            for met_list in metrics_list:
-                plt.figure(figsize=(6, 4))  # Adjust the size as needed
-                sns.boxplot(x=df[met_comp], y=df[met_list])
-                plt.title(f"Distribution of {met_list} by {met_comp}")
-                plt.xlabel(met_comp)
-                plt.ylabel(met_list)
-                safe_met_list = (
-                    met_list.replace(" ", "_")
-                    .replace("(", "")
-                    .replace(")", "")
-                    .replace("/", "_per_")
-                )
-                filename_png = f"{safe_met_list}_by_{met_comp}.png"
-                filename_svg = f"{safe_met_list}_by_{met_comp}.svg"
-                plt.savefig(
-                    os.path.join(image_path_png, filename_png), bbox_inches="tight"
-                )
-                plt.savefig(
-                    os.path.join(image_path_svg, filename_svg), bbox_inches="tight"
-                )
-                plt.close()
-
-    # Save the entire grid if required
-    if save_grid:
-        fig, axs = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))
-        axs = axs.flatten()
-
-        for i, ax in enumerate(axs):
-            if i < len(metrics_list) * len(metrics_boxplot_comp):
-                met_comp = metrics_boxplot_comp[i // len(metrics_list)]
-                met_list = metrics_list[i % len(metrics_list)]
-                sns.boxplot(x=df[met_comp], y=df[met_list], ax=ax)
-                ax.set_title(f"Distribution of {met_list} by {met_comp}")
-                ax.set_xlabel(met_comp)
-                ax.set_ylabel(met_list)
-            else:
-                ax.set_visible(False)
-
-        plt.tight_layout()
-        fig.savefig(
-            os.path.join(image_path_png, "all_boxplot_comparisons.png"),
-            bbox_inches="tight",
-        )
-        fig.savefig(
-            os.path.join(image_path_svg, "all_boxplot_comparisons.svg"),
-            bbox_inches="tight",
-        )
-        plt.show()  # show the plot(s)
-        plt.close(fig)
-
-
-################################################################################
 ######################### Stacked Bar Plot w/ Crosstab #########################
 ################################################################################
 
 
 def stacked_crosstab_plot(
-    x,
-    y,
-    p,
     df,
     col,
     func_col,
     legend_labels_list,
     title,
-    file_prefix,
     kind="bar",
     width=0.9,
     rot=0,
@@ -687,6 +588,10 @@ def stacked_crosstab_plot(
     color=None,
     output="both",
     return_dict=False,
+    x=None,
+    y=None,
+    p=None,
+    file_prefix=None,
 ):
     """
     Generates pairs of stacked bar plots for specified columns against
@@ -695,9 +600,6 @@ def stacked_crosstab_plot(
     distributions. Offers customization options for plot titles,
     colors, and more. Also stores and displays crosstabs.
     Parameters:
-    - x (int): The width of the figure.
-    - y (int): The height of the figure.
-    - p (int): The padding between the subplots.
     - df (DataFrame): The pandas DataFrame containing the data.
     - col (str): The name of the column in the DataFrame to be
     analyzed.
@@ -705,7 +607,6 @@ def stacked_crosstab_plot(
     - legend_labels_list (list): List of legend labels for each
     ground truth column.
     - title (list): List of titles for the plots.
-    - file_prefix (str): Prefix for the filename.
     - kind (str, optional): The kind of plot to generate (e.g., 'bar',
     'barh'). Defaults to 'bar'.
     - width (float, optional): The width of the bars in the bar plot.
@@ -727,6 +628,10 @@ def stacked_crosstab_plot(
     "crosstabs_only", or "both". Defaults to "both".
     - return_dict (bool, optional): Specify whether to return the
     crosstabs dictionary. Defaults to False.
+    - x (int, optional): The width of the figure.
+    - y (int, optional): The height of the figure.
+    - p (int, optional): The padding between the subplots.
+    - file_prefix (str, optional): Prefix for the filename when output includes plots.
     Returns:
     - crosstabs_dict (dict): Dictionary of crosstabs DataFrames if
     return_dict is True.
@@ -742,120 +647,139 @@ def stacked_crosstab_plot(
     ]
     if missing_cols:
         raise KeyError(f"Columns missing in DataFrame: {missing_cols}")
-    # Loop through each condition and create the plots
-    for truth, legend, tit in zip(func_col, legend_labels_list, title):
-        func_col_filename_png = os.path.join(
-            image_path_png, f"{file_prefix}_{truth}.png"
-        )
-        func_col_filename_svg = os.path.join(
-            image_path_svg, f"{file_prefix}_{truth}.svg"
-        )
-        image_path = {"png": func_col_filename_png, "svg": func_col_filename_svg}
-        # Work on a copy of the DataFrame to avoid modifying the original
-        df_copy = df.copy()
-        # Setting custom order if provided
-        if custom_order:
-            df_copy[col] = pd.Categorical(
-                df_copy[col], categories=custom_order, ordered=True
-            )
-            df_copy.sort_values(by=col, inplace=True)
-        # Verify the DataFrame state before creating plots
-        fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(x, y))
-        fig.tight_layout(w_pad=5, pad=p, h_pad=5)
-        # Title construction logic
-        title1 = f"Prevalence of {tit} by {col.replace('_', ' ').title()}"
-        title2 = f"Prevalence of {tit} by {col.replace('_', ' ').title()} (Normalized)"
-        xlabel1 = xlabel2 = f"{col.replace('_', ' ').title()}"
-        ylabel1 = "Count"
-        ylabel2 = "Density"
-        # Plotting the first stacked bar graph
-        crosstabdest = pd.crosstab(df_copy[col], df_copy[truth])
-        crosstabdest.columns = legend  # Rename the columns to match the legend
-        crosstabdest.plot(
-            kind=kind,
-            stacked=True,
-            title=title1,
-            ax=axes[0],
-            color=color,
-            width=width,
-            rot=rot,
-            fontsize=12,
-        )
-        axes[0].set_title(title1, fontsize=12)
-        axes[0].set_xlabel(xlabel1, fontsize=12)
-        axes[0].set_ylabel(ylabel1, fontsize=12)
-        axes[0].legend(legend, fontsize=12)
-        # Plotting the second, normalized stacked bar graph
-        crosstabdestnorm = crosstabdest.div(crosstabdest.sum(1), axis=0)
-        crosstabdestnorm.plot(
-            kind=kind,
-            stacked=True,
-            title=title2,
-            ylabel="Density",
-            ax=axes[1],
-            color=color,
-            width=width,
-            rot=rot,
-            fontsize=12,
-        )
-        axes[1].set_title(label=title2, fontsize=12)
-        axes[1].set_xlabel(xlabel2, fontsize=12)
-        axes[1].set_ylabel(ylabel2, fontsize=12)
-        axes[1].legend(legend, fontsize=12)
-        fig.align_ylabels()
-        if save_formats and isinstance(image_path, dict):
-            for save_format in save_formats:
-                if save_format in image_path:
-                    full_path = image_path[save_format]
-                    plt.savefig(full_path, bbox_inches="tight")
-        plt.show()
-        plt.close(fig)  # Ensure plot is closed after showing
 
-    legend_counter = 0
-    # first run of the crosstab, accounting for totals only
-    for col_results in func_col:
-        crosstab_df = pd.crosstab(
-            df_copy[col],
-            df_copy[col_results],
-            margins=True,
-            margins_name="Total",
+    # Work on a copy of the DataFrame to avoid modifying the original
+    df_copy = df.copy()
+    # Setting custom order if provided
+    if custom_order:
+        df_copy[col] = pd.Categorical(
+            df_copy[col], categories=custom_order, ordered=True
         )
-        # capture title for the crosstab
-        title_label = col_results  # Use col_results as the key
-        # rename columns
-        crosstab_df.rename(
-            columns={
-                0: legend_labels_list[legend_counter][0],
-                1: legend_labels_list[legend_counter][1],
-                "All": "Total",
-            },
-            inplace=True,
-        )
-        # re-do the crosstab, this time, accounting for normalized data
-        crosstab_df_norm = pd.crosstab(
-            df_copy[col],
-            df_copy[col_results],
-            normalize="index",
-            margins=True,
-            margins_name="Total",
-        )
-        crosstab_df_norm = crosstab_df_norm.mul(100).round(2)
-        crosstab_df_norm.rename(
-            columns={
-                0: legend_labels_list[legend_counter][0] + "_%",
-                1: legend_labels_list[legend_counter][1] + "_%",
-                "All": "Total_%",
-            },
-            inplace=True,
-        )
-        crosstab_df = pd.concat([crosstab_df, crosstab_df_norm], axis=1)
-        # process counter
-        legend_counter += 1
-        # display results
-        print("Crosstab for " + col_results)
-        display(crosstab_df)
-        # Store the crosstab in the dictionary
-        crosstabs_dict[col_results] = crosstab_df  # Use col_results as the key
+        df_copy.sort_values(by=col, inplace=True)
+
+    if output in ["both", "plots_only"]:
+        if file_prefix is None:
+            raise ValueError("file_prefix must be provided when output includes plots")
+        # Set default values for x, y, and p if not provided
+        if x is None:
+            x = 12
+        if y is None:
+            y = 8
+        if p is None:
+            p = 10
+        # Loop through each condition and create the plots
+        for truth, legend, tit in zip(func_col, legend_labels_list, title):
+            func_col_filename_png = os.path.join(
+                image_path_png, f"{file_prefix}_{truth}.png"
+            )
+            func_col_filename_svg = os.path.join(
+                image_path_svg, f"{file_prefix}_{truth}.svg"
+            )
+            image_path = {"png": func_col_filename_png, "svg": func_col_filename_svg}
+            # Verify the DataFrame state before creating plots
+            fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(x, y))
+            fig.tight_layout(w_pad=5, pad=p, h_pad=5)
+            # Title construction logic
+            title1 = f"Prevalence of {tit} by {col.replace('_', ' ').title()}"
+            title2 = (
+                f"Prevalence of {tit} by {col.replace('_', ' ').title()} (Normalized)"
+            )
+            xlabel1 = xlabel2 = f"{col.replace('_', ' ')}"
+            ylabel1 = "Count"
+            ylabel2 = "Density"
+            # Plotting the first stacked bar graph
+            crosstabdest = pd.crosstab(df_copy[col], df_copy[truth])
+            crosstabdest.columns = legend  # Rename the columns to match the legend
+            crosstabdest.plot(
+                kind=kind,
+                stacked=True,
+                title=title1,
+                ax=axes[0],
+                color=color,
+                width=width,
+                rot=rot,
+                fontsize=12,
+            )
+            axes[0].set_title(title1, fontsize=12)
+            axes[0].set_xlabel(xlabel1, fontsize=12)
+            axes[0].set_ylabel(ylabel1, fontsize=12)
+            axes[0].legend(legend, fontsize=12)
+            # Plotting the second, normalized stacked bar graph
+            crosstabdestnorm = crosstabdest.div(crosstabdest.sum(1), axis=0)
+            crosstabdestnorm.plot(
+                kind=kind,
+                stacked=True,
+                title=title2,
+                ylabel="Density",
+                ax=axes[1],
+                color=color,
+                width=width,
+                rot=rot,
+                fontsize=12,
+            )
+            axes[1].set_title(label=title2, fontsize=12)
+            axes[1].set_xlabel(xlabel2, fontsize=12)
+            axes[1].set_ylabel(ylabel2, fontsize=12)
+            axes[1].legend(legend, fontsize=12)
+            fig.align_ylabels()
+            if save_formats and isinstance(image_path, dict):
+                for save_format in save_formats:
+                    if save_format in image_path:
+                        full_path = image_path[save_format]
+                        plt.savefig(full_path, bbox_inches="tight")
+            plt.show()
+            plt.close(fig)  # Ensure plot is closed after showing
+
+    if output in ["both", "crosstabs_only"]:
+        legend_counter = 0
+        # first run of the crosstab, accounting for totals only
+        for col_results in func_col:
+            crosstab_df = pd.crosstab(
+                df_copy[col],
+                df_copy[col_results],
+                margins=True,
+                margins_name="Total",
+            )
+            # rename columns
+            crosstab_df.rename(
+                columns={
+                    **{
+                        col: legend_labels_list[legend_counter][i]
+                        for i, col in enumerate(crosstab_df.columns)
+                        if col != "Total"
+                    },
+                    "Total": "Total",
+                },
+                inplace=True,
+            )
+            # re-do the crosstab, this time, accounting for normalized data
+            crosstab_df_norm = pd.crosstab(
+                df_copy[col],
+                df_copy[col_results],
+                normalize="index",
+                margins=True,
+                margins_name="Total",
+            )
+            crosstab_df_norm = crosstab_df_norm.mul(100).round(2)
+            crosstab_df_norm.rename(
+                columns={
+                    **{
+                        col: f"{legend_labels_list[legend_counter][i]}_%"
+                        for i, col in enumerate(crosstab_df_norm.columns)
+                        if col != "Total"
+                    },
+                    "Total": "Total_%",
+                },
+                inplace=True,
+            )
+            crosstab_df = pd.concat([crosstab_df, crosstab_df_norm], axis=1)
+            # process counter
+            legend_counter += 1
+            # display results
+            print("Crosstab for " + col_results)
+            display(crosstab_df)
+            # Store the crosstab in the dictionary
+            crosstabs_dict[col_results] = crosstab_df  # Use col_results as the key
 
     # Return the crosstabs_dict only if return_dict is True
     if return_dict:
@@ -1072,11 +996,11 @@ def kde_distributions(
 
 
 ################################################################################
-############################# Box Plots Assortment #############################
+######################### Box and Violin Plots Assortment ######################
 ################################################################################
 
 
-def create_metrics_boxplots(
+def metrics_box_violin(
     df,
     metrics_list,
     metrics_boxplot_comp,
@@ -1084,14 +1008,17 @@ def create_metrics_boxplots(
     n_cols,
     image_path_png,
     image_path_svg,
-    save_individual=True,
-    save_grid=True,
+    plot_type="boxplot",
+    save_individual=False,
+    save_grid=False,
     save_both=False,
-    show_legend=True,  # New parameter to toggle legend
+    show_legend=True,
+    show_plot="both",
+    individual_figsize=(6, 4),
 ):
     """
-    Create and save individual boxplots, an entire grid of boxplots, or both for
-    given metrics and comparisons.
+    Create and save individual plots (boxplots or violin plots), an entire grid
+    of plots, or both for given metrics and comparisons.
 
     Parameters:
     - df: DataFrame containing the data.
@@ -1101,14 +1028,14 @@ def create_metrics_boxplots(
     - n_cols: Number of columns in the subplot grid.
     - image_path_png: Directory path to save .png images.
     - image_path_svg: Directory path to save .svg images.
+    - plot_type: Type of plot to create ('boxplot' or 'violinplot').
     - save_individual: Boolean, True if saving each subplot as an individual file.
     - save_grid: Boolean, True if saving the entire grid as one image.
     - save_both: Boolean, True if saving both individual and grid images.
     - show_legend: Boolean, True if showing the legend in the plots.
+    - show_plot: Specify which plots to display ("individual", "grid", or "both").
+    - individual_figsize: Tuple specifying the size of individual plots (width, height).
     """
-    # Ensure the directories exist
-    os.makedirs(image_path_png, exist_ok=True)
-    os.makedirs(image_path_svg, exist_ok=True)
 
     if save_both:
         save_individual = True
@@ -1117,20 +1044,35 @@ def create_metrics_boxplots(
     def get_palette(n_colors):
         return sns.color_palette("tab10", n_colors=n_colors)
 
-    # Save individual plots if required
-    if save_individual:
+    # Function to create individual plots
+    def plot_individual(ax, plot_type, x, y, data, hue, palette):
+        if plot_type == "boxplot":
+            sns.boxplot(
+                x=x, y=y, data=data, hue=hue, ax=ax, palette=palette, dodge=False
+            )
+        elif plot_type == "violinplot":
+            sns.violinplot(
+                x=x, y=y, data=data, hue=hue, ax=ax, palette=palette, dodge=False
+            )
+
+    # Display and save individual plots if required
+    if show_plot in ["individual", "both"] or save_individual or save_both:
         for met_comp in metrics_boxplot_comp:
             unique_vals = df[met_comp].value_counts().count()
             palette = get_palette(unique_vals)
             for met_list in metrics_list:
-                plt.figure(figsize=(6, 4))  # Adjust the size as needed
-                ax = sns.boxplot(
+                plt.figure(
+                    figsize=individual_figsize
+                )  # Use the specified size for individual plots
+                ax = plt.gca()
+                plot_individual(
+                    ax,
+                    plot_type,
                     x=met_comp,
                     y=met_list,
                     data=df,
                     hue=met_comp,
                     palette=palette,
-                    dodge=False,
                 )
                 plt.title(f"Distribution of {met_list} by {met_comp}")
                 plt.xlabel(met_comp)
@@ -1148,16 +1090,20 @@ def create_metrics_boxplots(
                 )
                 filename_png = f"{safe_met_list}_by_{met_comp}.png"
                 filename_svg = f"{safe_met_list}_by_{met_comp}.svg"
-                plt.savefig(
-                    os.path.join(image_path_png, filename_png), bbox_inches="tight"
-                )
-                plt.savefig(
-                    os.path.join(image_path_svg, filename_svg), bbox_inches="tight"
-                )
+
+                if save_individual or save_both:
+                    plt.savefig(
+                        os.path.join(image_path_png, filename_png), bbox_inches="tight"
+                    )
+                    plt.savefig(
+                        os.path.join(image_path_svg, filename_svg), bbox_inches="tight"
+                    )
+                if show_plot in ["individual", "both"]:
+                    plt.show()
                 plt.close()
 
-    # Save the entire grid if required
-    if save_grid:
+    # Display and save the entire grid if required
+    if show_plot in ["grid", "both"] or save_grid or save_both:
         fig, axs = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))
         axs = axs.flatten()
 
@@ -1167,14 +1113,14 @@ def create_metrics_boxplots(
                 met_list = metrics_list[i % len(metrics_list)]
                 unique_vals = df[met_comp].value_counts().count()
                 palette = get_palette(unique_vals)
-                sns.boxplot(
+                plot_individual(
+                    ax,
+                    plot_type,
                     x=met_comp,
                     y=met_list,
                     data=df,
                     hue=met_comp,
-                    ax=ax,
                     palette=palette,
-                    dodge=False,
                 )
                 ax.set_title(f"Distribution of {met_list} by {met_comp}")
                 ax.set_xlabel(met_comp)
@@ -1187,13 +1133,19 @@ def create_metrics_boxplots(
                 ax.set_visible(False)
 
         plt.tight_layout()
-        fig.savefig(
-            os.path.join(image_path_png, "all_boxplot_comparisons.png"),
-            bbox_inches="tight",
-        )
-        fig.savefig(
-            os.path.join(image_path_svg, "all_boxplot_comparisons.svg"),
-            bbox_inches="tight",
-        )
-        plt.show()  # show the plot(s)
+        if save_grid or save_both:
+            fig.savefig(
+                os.path.join(
+                    image_path_png, f"all_{plot_type}_comparisons_{met_comp}.png"
+                ),
+                bbox_inches="tight",
+            )
+            fig.savefig(
+                os.path.join(
+                    image_path_svg, f"all_{plot_type}_comparisons_{met_comp}.svg"
+                ),
+                bbox_inches="tight",
+            )
+        if show_plot in ["grid", "both"]:
+            plt.show()  # show the plot(s)
         plt.close(fig)
