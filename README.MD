@@ -65,7 +65,7 @@ The dataset used in this project is an anonymized 16,619 patient dataset from Se
 
 ## Data Exploration and Preprocessing
 
-[Data Exploration and Preprocessing: Jupyter Notebook](https://github.com/lshpaner/seoul_kfre/blob/main/notebooks/data_exploration.ipynb)
+[Data Exploration and Preprocessing: Jupyter Notebook](https://github.com/lshpaner/seoul_kfre/blob/main/notebooks/data_exp_prep.ipynb)
 
 EDA is conducted to understand the demographics and clinical characteristics of the patient population. This involves:
 
