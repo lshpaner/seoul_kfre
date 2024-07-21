@@ -61,7 +61,9 @@ The KFRE calculations are performed using a custom Python library developed to r
 
 ## Data Description
 
-The dataset used in this project is an anonymized 16,619 patient dataset from Seoul University Hospital with. It includes various demographic and clinical characteristics necessary for calculating the KFRE, such as `age`, `sex`, `GFR`, `hypertension`, `albuminuria`, and other relevant clinical parameters.
+The dataset utilized in this project comprises anonymized records of 16,619 patients from Seoul University Hospital. It includes various demographic and clinical characteristics necessary for calculating the KFRE, such as age, sex, GFR, hypertension, albuminuria, and other relevant clinical parameters.
+
+Of the 16,619 patients, 6,569 were identified as having CKD stages 3-5. Validation of the model was performed on this subset in accordance with the methodology used by Tangri et al.
 
 ## Data Exploration and Preprocessing
 
