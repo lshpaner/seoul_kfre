@@ -19,6 +19,7 @@ This repository contains the work focused on independently validating the Kidney
 6. [Installation](#installation)
 7. [Results](#results)
 8. [Acknowledgements](#acknowledgements)
+9. [References](#references)
 
 -----------
 
@@ -104,6 +105,17 @@ The results of this project will be detailed in the results directory, including
 
 ## Acknowledgements
 This project is inspired by the work of Tangri et al. and supported by the data and support provided by Dr. Minwoo Kang and  Jung Pyo Lee. Special thanks to the individuals and institutions that have contributed to this project.
+
+
+## References
+
+1. Tangri N, Grams ME, Levey AS, Coresh J, Appel LJ, Astor BC, Chodick G, Collins AJ, Djurdjev O, Elley CR, Evans M, Garg AX, Hallan SI, Inker LA, Ito S, Jee SH, Kovesdy CP, Kronenberg F, Heerspink HJL, Marks A, Nadkarni GN, Navaneethan SD, Nelson RG, Titze S, Sarnak MJ, Stengel B, Woodward M, Iseki K, for the CKD Prognosis Consortium. (2016). *Multinational assessment of accuracy of equations for predicting risk of kidney failure: A meta-analysis. JAMA,* **315**(2), 164–174. doi: 10.1001/jama.2015.18202.
+
+2. Tangri, N., Stevens, L. A., Griffith, J., Tighiouart, H., Djurdjev, O., Naimark, D., Levin, A., & Levey, A. S. (2011). *A predictive model for progression of chronic kidney disease to kidney failure. JAMA,* **305**(15), 1553-1559. doi: 10.1001/jama.2011.451.  
+
+3. Shpaner, L. (2024). *kfre: A Python library for reproducing Kidney Failure Risk Equations (KFRE)* (Version 0.1.8) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.11100222
+
+4. Kang MW, Tangri N, Kim YC, An JN, Lee J, Li L, Oh YK, Kim DK, Joo KW, Kim YS, Lim CS, Lee JP. (2020). *An independent validation of the kidney failure risk equation in an Asian population. Scientific Reports,* **10**(1), 12920. doi: 10.1038/s41598-020-69715-3.
 
 
 

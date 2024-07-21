@@ -390,6 +390,85 @@ def summarize_all_combinations(
 
 
 ################################################################################
+############################ Save DataFrames to Excel ##########################
+################################################################################
+
+
+def save_dataframes_to_excel(file_path, df_dict, decimal_places=2):
+    """
+    Save multiple DataFrames to separate sheets in an Excel file with customized
+    formatting.
+
+    Parameters:
+    ----------
+    file_path : str
+        Full path to the output Excel file.
+    df_dict : dict
+        Dictionary where keys are sheet names and values are DataFrames to save.
+    decimal_places : int, optional
+        Number of decimal places to round numeric columns. Default is 2.
+
+    Notes:
+    -----
+    - The function will autofit columns and left-align text.
+    - Numeric columns will be formatted with the specified number of decimal places.
+    - Headers will be bold and left-aligned without borders.
+    """
+
+    with pd.ExcelWriter(file_path, engine="xlsxwriter") as writer:
+        workbook = writer.book
+
+        # Customize header format (remove borders)
+        header_format = workbook.add_format(
+            {
+                "bold": True,
+                "text_wrap": True,
+                "valign": "top",
+                "border": 0,  # Remove borders
+                "align": "left",  # Left align
+            }
+        )
+
+        # Customize cell format (left align)
+        cell_format_left = workbook.add_format({"align": "left"})  # Left align
+
+        # Customize number format
+        number_format_str = f"0.{decimal_places * '0'}"
+        cell_format_number = workbook.add_format(
+            {
+                "align": "left",
+                "num_format": number_format_str,
+            }  # Left align  # Number format
+        )
+
+        # Write each DataFrame to its respective sheet
+        for sheet_name, df in df_dict.items():
+            # Round numeric columns to the specified number of decimal places
+            df = df.round(decimal_places)
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+            worksheet = writer.sheets[sheet_name]
+
+            # Write header with custom format
+            for col_num, value in enumerate(df.columns.values):
+                worksheet.write(0, col_num, value, header_format)
+
+            # Auto-fit all columns with added space
+            for col_num, col_name in enumerate(df.columns):
+                max_length = max(df[col_name].astype(str).map(len).max(), len(col_name))
+                # Determine if the column is numeric by dtype
+                if pd.api.types.is_numeric_dtype(df[col_name]):
+                    worksheet.set_column(
+                        col_num, col_num, max_length + 2, cell_format_number
+                    )
+                else:
+                    worksheet.set_column(
+                        col_num, col_num, max_length + 2, cell_format_left
+                    )
+
+    print(f"DataFrames saved to {file_path}")
+
+
+################################################################################
 ############################## Contingency Table ###############################
 ################################################################################
 
