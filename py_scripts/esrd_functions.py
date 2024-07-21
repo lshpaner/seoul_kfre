@@ -132,8 +132,9 @@ def prep_and_plot_metrics_vars(
     show_grids=False,
 ):
     """
-    Generate the true labels and predicted probabilities for 2-year and 5-year outcomes,
-    and optionally plot and save ROC and Precision-Recall curves for specified variable models.
+    Generate the true labels and predicted probabilities for 2-year and 5-year
+    outcomes, and optionally plot and save ROC and Precision-Recall curves for
+    specified variable models.
 
     Parameters:
     ----------
@@ -175,7 +176,8 @@ def prep_and_plot_metrics_vars(
         Year outcomes to show in the plots. Default is [2, 5].
 
     plot_combinations : bool, optional
-        Whether to plot all combinations of variables in a single plot. Default is False.
+        Whether to plot all combinations of variables in a single plot.
+        Default is False.
 
     show_grids : bool, optional
         Whether to show grid plots of all combinations. Default is False.
@@ -196,73 +198,101 @@ def prep_and_plot_metrics_vars(
         If 'bbox_inches' is not a string or None.
         If 'show_years' contains invalid year values.
     """
+
+    # Define valid years for outcome analysis. Only 2 and 5 years are considered
+    # valid in this function.
     valid_years = [2, 5]
+
+    # Ensure show_years is a list, even if a single integer or tuple is provided.
+    # This simplifies processing later.
     if isinstance(show_years, int):
         show_years = [show_years]
     elif isinstance(show_years, tuple):
         show_years = list(show_years)
 
+    # Validate that all years in show_years are within the allowed valid_years.
+    # Raise an error if not.
     if any(year not in valid_years for year in show_years):
         raise ValueError(
             f"The 'show_years' parameter must be a list or tuple containing any of {valid_years}."
         )
 
-    # Ensure num_vars is a list even if a single int is provided
+    # Ensure num_vars is a list, even if a single integer or tuple is provided.
+    # This simplifies processing later.
     if isinstance(num_vars, int):
         num_vars = [num_vars]
     elif isinstance(num_vars, tuple):
         num_vars = list(num_vars)
 
-    # Check for invalid image saving configuration
+    # Check for invalid image saving configuration. If save_plots is True,
+    # either image_path_png or image_path_svg must be specified.
     if save_plots and not (image_path_png or image_path_svg):
         raise ValueError(
             "To save plots, 'image_path_png' or 'image_path_svg' must be specified."
         )
 
-    # Ensure bbox_inches is a string or None
+    # Ensure bbox_inches is a string or None. This is used to set the bounding
+    # box for saving figures.
     if not isinstance(bbox_inches, (str, type(None))):
         raise ValueError("The 'bbox_inches' parameter must be a string or None.")
 
+    # Prepare lists to hold true labels and outcomes for the specified years.
     y_true = []
     outcomes = []
     for year in show_years:
+        # Append true labels for the specified year outcomes. These are the
+        # actual outcomes.
         y_true.append(df[f"{year}_year_outcome"])
+        # Append outcome labels as strings, e.g., "2-year" and "5-year".
         outcomes.append(f"{year}-year")
 
-    # Prepare predictions
+    # Prepare a dictionary to hold predicted probabilities for each combination
+    # of variables and years.
     preds = {}
     for n in num_vars:
+        # Generate predicted probabilities for each number of variables and each
+        # outcome year.
         preds[f"{n}var"] = [df[f"kfre_{n}var_{year}year"] for year in show_years]
 
+    # If mode includes preparation (either 'prep' or 'both'), prepare the result to return.
     if mode in ["prep", "both"]:
         result = (y_true, preds, outcomes)
         if mode == "prep":
+            # If mode is 'prep', return the prepared data immediately.
             return result
 
+    # Initialize lists to hold figure objects for ROC and Precision-Recall (PR) plots.
     roc_figs, pr_figs = [], []
 
+    # If mode includes plotting (either 'plot' or 'both'), generate the plots.
     if mode in ["plot", "both"]:
         if plot_combinations:
-            # Plot all variable combinations in a single plot for each year outcome
+            # If plot_combinations is True, plot all variable combinations in a
+            # single plot for each year outcome.
             if plot_type in ["roc", "both"]:
                 fig = plt.figure(figsize=fig_size)
                 for n in num_vars:
                     for true_labels, pred_labels, outcome in zip(
                         y_true, preds[f"{n}var"], outcomes
                     ):
-                        fpr, tpr, _ = roc_curve(true_labels, pred_labels)
-                        auc_score = auc(fpr, tpr)
+                        fpr, tpr, _ = roc_curve(
+                            true_labels, pred_labels
+                        )  # Compute ROC curve
+                        auc_score = auc(fpr, tpr)  # Compute AUC score
                         plt.plot(
                             fpr,
                             tpr,
                             label=f"{n}-variable {outcome} outcome (AUC = {auc_score:.02f})",
-                        )
-                plt.plot([0, 1], [0, 1], linestyle="--", color="red")
+                        )  # Plot ROC curve
+                plt.plot(
+                    [0, 1], [0, 1], linestyle="--", color="red"
+                )  # Add diagonal line for reference
                 plt.xlabel("1 - Specificity")
                 plt.ylabel("Sensitivity")
                 plt.title(f"AUC ROC for KFRE Outcomes with Different Variables")
                 plt.legend(loc="best")
                 if save_plots and not show_grids:
+                    # Save the plot if save_plots is True and show_grids is False.
                     filename = (
                         f"{image_prefix}_roc_curve_combined"
                         if image_prefix
@@ -294,13 +324,15 @@ def prep_and_plot_metrics_vars(
                     ):
                         precision, recall, _ = precision_recall_curve(
                             true_labels, pred_labels
-                        )
-                        ap_score = average_precision_score(true_labels, pred_labels)
+                        )  # Compute Precision-Recall curve
+                        ap_score = average_precision_score(
+                            true_labels, pred_labels
+                        )  # Compute Average Precision score
                         plt.plot(
                             recall,
                             precision,
                             label=f"{n}-variable {outcome} outcome (AP = {ap_score:.02f})",
-                        )
+                        )  # Plot PR curve
                 plt.xlabel("Recall")
                 plt.ylabel("Precision")
                 plt.title(
@@ -308,6 +340,7 @@ def prep_and_plot_metrics_vars(
                 )
                 plt.legend(loc="best")
                 if save_plots and not show_grids:
+                    # Save the plot if save_plots is True and show_grids is False.
                     filename = (
                         f"{image_prefix}_pr_curve_combined"
                         if image_prefix
@@ -331,28 +364,32 @@ def prep_and_plot_metrics_vars(
                 else:
                     plt.close(fig)
         else:
-            # Plot each variable and year combination in separate plots
+            # If plot_combinations is False, plot each variable and year
+            # combination in separate plots.
             for n in num_vars:
                 pred_list = preds[f"{n}var"]
                 if plot_type in ["roc", "both"]:
                     fig = plt.figure(figsize=fig_size)
                     for i, (true_labels, outcome) in enumerate(zip(y_true, outcomes)):
                         pred_labels = pred_list[i]
-                        fpr, tpr, _ = roc_curve(true_labels, pred_labels)
-                        auc_score = auc(fpr, tpr)
+                        fpr, tpr, _ = roc_curve(
+                            true_labels, pred_labels
+                        )  # Compute ROC curve
+                        auc_score = auc(fpr, tpr)  # Compute AUC score
                         plt.plot(
                             fpr,
                             tpr,
                             label=f"{n}-variable {outcome} outcome (AUC = {auc_score:.02f})",
-                        )
+                        )  # Plot ROC curve
                     plt.plot(
                         [0, 1], [0, 1], linestyle="--", color="red"
-                    )  # Ensure diagonal line is dotted and red
+                    )  # Add diagonal line for reference
                     plt.xlabel("1 - Specificity")
                     plt.ylabel("Sensitivity")
                     plt.title(f"AUC ROC for Outcomes with {n} Variables")
                     plt.legend(loc="best")
                     if save_plots and not show_grids:
+                        # Save the plot if save_plots is True and show_grids is False.
                         filename = (
                             f"{image_prefix}_{n}var_roc_curve"
                             if image_prefix
@@ -382,18 +419,21 @@ def prep_and_plot_metrics_vars(
                         pred_labels = pred_list[i]
                         precision, recall, _ = precision_recall_curve(
                             true_labels, pred_labels
-                        )
-                        ap_score = average_precision_score(true_labels, pred_labels)
+                        )  # Compute Precision-Recall curve
+                        ap_score = average_precision_score(
+                            true_labels, pred_labels
+                        )  # Compute Average Precision score
                         plt.plot(
                             recall,
                             precision,
                             label=f"{n}-variable {outcome} outcome (AP = {ap_score:.02f})",
-                        )
+                        )  # Plot PR curve
                     plt.xlabel("Recall")
                     plt.ylabel("Precision")
                     plt.title(f"Precision-Recall Curve for Outcomes with {n} Variables")
                     plt.legend(loc="best")
                     if save_plots and not show_grids:
+                        # Save the plot if save_plots is True and show_grids is False.
                         filename = (
                             f"{image_prefix}_{n}var_pr_curve"
                             if image_prefix
@@ -417,12 +457,14 @@ def prep_and_plot_metrics_vars(
                     else:
                         plt.close(fig)
 
-        # Create and save grid plots if show_grids is True
+        # Create and save grid plots if show_grids is True.
         if show_grids:
             grid_figs = roc_figs + pr_figs
             if grid_figs:
-                grid_cols = min(len(grid_figs), 3)
-                grid_rows = (len(grid_figs) + grid_cols - 1) // grid_cols
+                grid_cols = min(len(grid_figs), 3)  # Number of columns in the grid
+                grid_rows = (
+                    len(grid_figs) + grid_cols - 1
+                ) // grid_cols  # Number of rows in the grid
                 fig, axs = plt.subplots(
                     grid_rows,
                     grid_cols,
@@ -451,6 +493,7 @@ def prep_and_plot_metrics_vars(
                     fig.delaxes(ax)
                 plt.tight_layout()
                 if save_plots:
+                    # Save the grid plot if save_plots is True.
                     filename = f"{image_prefix}_grid" if image_prefix else "grid"
                     if image_path_png:
                         os.makedirs(image_path_png, exist_ok=True)
@@ -466,9 +509,11 @@ def prep_and_plot_metrics_vars(
                         )
                 plt.show()
 
+        # If mode is 'plot', return nothing as the function ends here.
         if mode == "plot":
             return
 
+    # If mode is 'both', return the prepared data.
     if mode == "both":
         return result
 
@@ -509,33 +554,69 @@ def calculate_metrics_for_n_var(df, n_var_list):
       probabilities and the true binary outcomes.
     """
 
+    # Define the outcomes we are interested in, here 2-year and 5-year outcomes
     outcomes = ["2_year", "5_year"]
+
+    # Extract the true labels for the 2-year and 5-year outcomes from the DataFrame
     y_true_2_yr = df["2_year_outcome"]
     y_true_5_yr = df["5_year_outcome"]
+
+    # Store the true labels in a list for easier iteration later
     y_true = [y_true_2_yr, y_true_5_yr]
 
+    # Initialize a dictionary to store the predicted probabilities for each
+    # number of variables
     preds_n_var_dict = {}
+
+    # Iterate over each number of variables specified in n_var_list
     for n_var in n_var_list:
+        # Initialize an empty list for storing predictions corresponding to this
+        # number of variables
         preds_n_var_dict[n_var] = []
+
+        # Iterate over each outcome (2-year and 5-year)
         for outcome in outcomes:
+            # Construct the column name for the predicted probabilities
             col_name = f"kfre_{n_var}var_{outcome.replace('_year', 'year')}"
+
+            # Check if the column exists in the DataFrame
             if col_name in df.columns:
+                # Append the predicted probabilities to the list
                 preds_n_var_dict[n_var].append(df[col_name])
             else:
+                # If the column does not exist, append None
                 preds_n_var_dict[n_var].append(None)
 
+    # Initialize an empty list to store the calculated metrics for each
+    # combination of variables and outcomes
     metrics_list_n_var = []
 
+    # Iterate over each number of variables and its corresponding predictions
     for n_var, preds in preds_n_var_dict.items():
+        # Iterate over each outcome, true labels, and predicted labels
         for outcome, true_labels, pred_labels in zip(outcomes, y_true, preds):
+            # Only calculate metrics if the predicted labels are not None
             if pred_labels is not None:
+                # Calculate precision (positive predictive value)
                 precision = precision_score(true_labels, pred_labels > 0.5)
+                # Calculate sensitivity (recall)
                 sensitivity = recall_score(true_labels, pred_labels > 0.5)
-                specificity = recall_score(true_labels, pred_labels > 0.5, pos_label=0)
+                # Calculate specificity (recall for the negative class)
+                specificity = recall_score(
+                    true_labels,
+                    pred_labels > 0.5,
+                    pos_label=0,
+                )
+                # Calculate AUC ROC (Area Under the Receiver Operating
+                # Characteristic curve)
                 auc_roc = roc_auc_score(true_labels, pred_labels)
+                # Calculate Brier score (mean squared difference between
+                # predicted probabilities and true binary outcomes)
                 brier = brier_score_loss(true_labels, pred_labels)
+                # Calculate average precision (area under the precision-recall curve)
                 average_precision = average_precision_score(true_labels, pred_labels)
 
+                # Create a dictionary to store the calculated metrics
                 metrics = {
                     "Precision/PPV": precision,
                     "Average Precision": average_precision,
@@ -546,10 +627,18 @@ def calculate_metrics_for_n_var(df, n_var_list):
                     "Outcome": f"{outcome}_{n_var}_var_kfre",
                 }
 
+                # Append the dictionary to the metrics list
                 metrics_list_n_var.append(metrics)
 
+    # Convert the list of metrics dictionaries to a DataFrame
     metrics_df_n_var = pd.DataFrame(metrics_list_n_var)
+
+    # Set the 'Outcome' column as the index and transpose the DataFrame for
+    # better readability
     metrics_df_n_var = metrics_df_n_var.set_index("Outcome").T
+
+    # Rename the axis to 'Metrics' for clarity
     metrics_df_n_var = metrics_df_n_var.rename_axis("Metrics")
 
+    # Return the resulting DataFrame containing the performance metrics
     return metrics_df_n_var
