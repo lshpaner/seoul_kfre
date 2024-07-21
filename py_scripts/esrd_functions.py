@@ -97,15 +97,15 @@ def classify_ckd_stages(
         df[stage_col] = np.select(conditions, choices, default="Not classified")
 
     if combined_stage_col:
-        # Combine conditions for CKD stages 3 and 4 according to eGFR values
-        combined_conditions = [(df[egfr_col] >= 15) & (df[egfr_col] < 60)]
+        # Combine conditions for CKD stages 3, 4, and 5 according to eGFR values
+        combined_conditions = df[egfr_col] < 60
 
         # Define the stage names that correspond to the combined condition
-        combined_choices = ["CKD Stage 3 and 4"]
+        combined_choices = ["CKD Stage 3 - 5"]
 
         # Create a new column in the DataFrame
         df[combined_stage_col] = np.select(
-            combined_conditions, combined_choices, default="Not classified"
+            [combined_conditions], combined_choices, default="Not classified"
         )
 
     return df
