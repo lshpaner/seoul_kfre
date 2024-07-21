@@ -293,33 +293,96 @@ def summarize_all_combinations(
     grand_total = len(df)
     all_combinations = []
 
-    # Create a copy of the DataFrame to avoid modifying the original
     df_copy = df.copy()
 
-    # Generate all possible combinations of the unique variables
     for i in range(min_length, len(variables) + 1):
         for combination in combinations(variables, i):
             all_combinations.append(combination)
             for col in combination:
                 df_copy[col] = df_copy[col].astype(str)
 
-            # Count
             count_df = (
                 df_copy.groupby(list(combination)).size().reset_index(name="Count")
             )
-            # Proportion as percentage of grand total
             count_df["Proportion"] = (count_df["Count"] / grand_total * 100).fillna(0)
 
             summary_tables[tuple(combination)] = count_df
 
-    # Save each dataframe as a separate sheet in an Excel file
+    sheet_names = [
+        ("_".join(combination)[:31]) for combination in summary_tables.keys()
+    ]
+    descriptions = [
+        "Summary for " + ", ".join(combination) for combination in summary_tables.keys()
+    ]
+    legend_df = pd.DataFrame({"Sheet Name": sheet_names, "Description": descriptions})
+
     file_path = f"{data_path}/{data_name}"
     with pd.ExcelWriter(file_path, engine="xlsxwriter") as writer:
-        for combination, table in summary_tables.items():
-            sheet_name = "_".join(combination)[
+        # Write the Table of Contents (legend sheet)
+        legend_df.to_excel(writer, sheet_name="Table of Contents", index=False)
+
+        workbook = writer.book
+        toc_worksheet = writer.sheets["Table of Contents"]
+
+        # Add hyperlinks to the sheet names
+        for i, sheet_name in enumerate(sheet_names, start=2):
+            cell = f"A{i}"
+            toc_worksheet.write_url(cell, f"#'{sheet_name}'!A1", string=sheet_name)
+
+        # Set column widths and alignment for Table of Contents
+        toc_worksheet.set_column("A:A", 50)  # Set width for column A (Sheet Name)
+        toc_worksheet.set_column("B:B", 100)  # Set width for column B (Description)
+
+        # Create a format for left-aligned text
+        cell_format = workbook.add_format({"align": "left"})
+        toc_worksheet.set_column("A:A", 50, cell_format)  # Column A
+        toc_worksheet.set_column("B:B", 100, cell_format)  # Column B
+
+        # Format the header row of Table of Contents
+        header_format_toc = workbook.add_format(
+            {"bold": True, "align": "left", "border": 0}
+        )
+        toc_worksheet.write_row("A1", legend_df.columns, header_format_toc)
+
+        # Define a format with no borders for the header row in other sheets
+        header_format_no_border = workbook.add_format(
+            {"bold": True, "border": 0, "align": "left"}
+        )
+
+        # Define a format for left-aligned text in other sheets
+        left_align_format = workbook.add_format({"align": "left"})
+
+        # Format the summary tables
+        for sheet_name, table in summary_tables.items():
+            sheet_name_str = "_".join(sheet_name)[
                 :31
-            ]  # Excel sheet names must be <= 31 characters
-            table.to_excel(writer, sheet_name=sheet_name, index=False)
+            ]  # Ensure sheet name is <= 31 characters
+            table.to_excel(writer, sheet_name=sheet_name_str, index=False)
+
+            worksheet = writer.sheets[sheet_name_str]
+
+            # Apply format to the header row (top row)
+            for col_num, col_name in enumerate(table.columns):
+                worksheet.write(0, col_num, col_name, header_format_no_border)
+
+            # Apply left alignment to all columns
+            for row_num in range(1, len(table) + 1):
+                for col_num in range(len(table.columns)):
+                    worksheet.write(
+                        row_num,
+                        col_num,
+                        table.iloc[row_num - 1, col_num],
+                        left_align_format,
+                    )
+
+            # Auto-fit all columns with added space
+            for col_num, col_name in enumerate(table.columns):
+                max_length = max(
+                    table[col_name].astype(str).map(len).max(), len(col_name)
+                )
+                worksheet.set_column(
+                    col_num, col_num, max_length + 2, left_align_format
+                )  # Add extra space
 
     print(f"Data saved to {file_path}")
 
